@@ -90,7 +90,7 @@ public class FlowableIdmRule implements TestRule {
         return new Statement() {
             @Override
             public void evaluate() throws Throwable {
-                List<Throwable> errors = new ArrayList<Throwable>();
+                List<Throwable> errors = new ArrayList<>();
 
                 startingQuietly(description, errors);
                 try {
@@ -181,7 +181,7 @@ public class FlowableIdmRule implements TestRule {
     }
 
     protected void configureIdmEngine() {
-        /** meant to be overridden */
+        /* meant to be overridden */
     }
 
     public String getConfigurationResource() {

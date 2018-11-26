@@ -15,12 +15,8 @@ package org.flowable.engine.impl.cmd;
 
 import java.io.Serializable;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 import org.apache.commons.lang3.StringUtils;
 import org.flowable.bpmn.model.BpmnModel;
@@ -28,22 +24,20 @@ import org.flowable.bpmn.model.FlowElement;
 import org.flowable.bpmn.model.Process;
 import org.flowable.bpmn.model.StartEvent;
 import org.flowable.bpmn.model.ValuedDataObject;
-import org.flowable.content.api.ContentItem;
-import org.flowable.content.api.ContentService;
-import org.flowable.engine.common.api.FlowableObjectNotFoundException;
+import org.flowable.common.engine.api.FlowableObjectNotFoundException;
+import org.flowable.common.engine.impl.interceptor.Command;
+import org.flowable.common.engine.impl.interceptor.CommandContext;
 import org.flowable.engine.impl.cfg.ProcessEngineConfigurationImpl;
-import org.flowable.engine.impl.interceptor.Command;
-import org.flowable.engine.impl.interceptor.CommandContext;
 import org.flowable.engine.impl.persistence.deploy.DeploymentManager;
+import org.flowable.engine.impl.util.CommandContextUtil;
 import org.flowable.engine.impl.util.ProcessDefinitionUtil;
 import org.flowable.engine.impl.util.ProcessInstanceHelper;
 import org.flowable.engine.repository.ProcessDefinition;
 import org.flowable.engine.runtime.ProcessInstance;
+import org.flowable.form.api.FormFieldHandler;
+import org.flowable.form.api.FormInfo;
 import org.flowable.form.api.FormRepositoryService;
 import org.flowable.form.api.FormService;
-import org.flowable.form.model.FormField;
-import org.flowable.form.model.FormFieldTypes;
-import org.flowable.form.model.FormModel;
 
 /**
  * @author Tom Baeyens
@@ -64,8 +58,9 @@ public class StartProcessInstanceWithFormCmd implements Command<ProcessInstance>
         this.processInstanceName = processInstanceName;
     }
 
+    @Override
     public ProcessInstance execute(CommandContext commandContext) {
-        ProcessEngineConfigurationImpl processEngineConfiguration = commandContext.getProcessEngineConfiguration();
+        ProcessEngineConfigurationImpl processEngineConfiguration = CommandContextUtil.getProcessEngineConfiguration(commandContext);
         DeploymentManager deploymentCache = processEngineConfiguration.getDeploymentManager();
 
         // Find the process definition
@@ -74,9 +69,9 @@ public class StartProcessInstanceWithFormCmd implements Command<ProcessInstance>
             throw new FlowableObjectNotFoundException("No process definition found for id = '" + processDefinitionId + "'", ProcessDefinition.class);
         }
 
-        FormModel formModel = null;
+        FormInfo formInfo = null;
         Map<String, Object> formVariables = null;
-        FormService formService = processEngineConfiguration.getFormEngineFormService();
+        FormService formService = CommandContextUtil.getFormService();
 
         if (variables != null || outcome != null) {
             BpmnModel bpmnModel = ProcessDefinitionUtil.getBpmnModel(processDefinition.getId());
@@ -85,10 +80,10 @@ public class StartProcessInstanceWithFormCmd implements Command<ProcessInstance>
             if (startElement instanceof StartEvent) {
                 StartEvent startEvent = (StartEvent) startElement;
                 if (StringUtils.isNotEmpty(startEvent.getFormKey())) {
-                    FormRepositoryService formRepositoryService = processEngineConfiguration.getFormEngineRepositoryService();
-                    formModel = formRepositoryService.getFormModelByKey(startEvent.getFormKey());
-                    if (formModel != null) {
-                        formVariables = formService.getVariablesFromFormSubmission(formModel, variables, outcome);
+                    FormRepositoryService formRepositoryService = CommandContextUtil.getFormRepositoryService();
+                    formInfo = formRepositoryService.getFormModelByKey(startEvent.getFormKey());
+                    if (formInfo != null) {
+                        formVariables = formService.getVariablesFromFormSubmission(formInfo, variables, outcome);
                     }
                 }
             }
@@ -97,10 +92,10 @@ public class StartProcessInstanceWithFormCmd implements Command<ProcessInstance>
         ProcessInstance processInstance = createAndStartProcessInstance(processDefinition, processInstanceName,
                 formVariables, commandContext);
 
-        if (formModel != null) {
-            formService.createFormInstance(formVariables, formModel, null, processInstance.getId());
-
-            processUploadFieldsIfNeeded(formModel, processInstance.getId(), commandContext);
+        if (formInfo != null) {
+            formService.createFormInstance(formVariables, formInfo, null, processInstance.getId(), processInstance.getProcessDefinitionId());
+            FormFieldHandler formFieldHandler = CommandContextUtil.getProcessEngineConfiguration(commandContext).getFormFieldHandler();
+            formFieldHandler.handleFormFieldsOnSubmit(formInfo, null, processInstance.getId(), null, null, variables);
         }
 
         return processInstance;
@@ -109,12 +104,12 @@ public class StartProcessInstanceWithFormCmd implements Command<ProcessInstance>
     protected ProcessInstance createAndStartProcessInstance(ProcessDefinition processDefinition, String processInstanceName,
             Map<String, Object> variables, CommandContext commandContext) {
 
-        ProcessInstanceHelper processInstanceHelper = commandContext.getProcessEngineConfiguration().getProcessInstanceHelper();
+        ProcessInstanceHelper processInstanceHelper = CommandContextUtil.getProcessEngineConfiguration(commandContext).getProcessInstanceHelper();
         return processInstanceHelper.createAndStartProcessInstance(processDefinition, null, processInstanceName, variables, null);
     }
 
     protected Map<String, Object> processDataObjects(Collection<ValuedDataObject> dataObjects) {
-        Map<String, Object> variablesMap = new HashMap<String, Object>();
+        Map<String, Object> variablesMap = new HashMap<>();
         // convert data objects to process variables
         if (dataObjects != null) {
             for (ValuedDataObject dataObject : dataObjects) {
@@ -122,42 +117,5 @@ public class StartProcessInstanceWithFormCmd implements Command<ProcessInstance>
             }
         }
         return variablesMap;
-    }
-
-    /**
-     * When content is uploaded for a field, it is uploaded as a 'temporary related content'. Now that the task is completed, we need to associate the field/taskId/processInstanceId with the related
-     * content so we can retrieve it later.
-     */
-    protected void processUploadFieldsIfNeeded(FormModel formModel, String processInstanceId, CommandContext commandContext) {
-        ProcessEngineConfigurationImpl processEngineConfiguration = commandContext.getProcessEngineConfiguration();
-        if (!processEngineConfiguration.isContentEngineInitialized()) {
-            return;
-        }
-
-        if (formModel != null && formModel.getFields() != null) {
-            for (FormField formField : formModel.getFields()) {
-                if (FormFieldTypes.UPLOAD.equals(formField.getType())) {
-
-                    String variableName = formField.getId();
-                    if (variables.containsKey(variableName)) {
-                        String variableValue = (String) variables.get(variableName);
-                        if (StringUtils.isNotEmpty(variableValue)) {
-                            String[] contentItemIds = StringUtils.split(variableValue, ",");
-                            Set<String> contentItemIdSet = new HashSet<>();
-                            Collections.addAll(contentItemIdSet, contentItemIds);
-
-                            ContentService contentService = processEngineConfiguration.getContentService();
-                            List<ContentItem> contentItems = contentService.createContentItemQuery().ids(contentItemIdSet).list();
-
-                            for (ContentItem contentItem : contentItems) {
-                                contentItem.setProcessInstanceId(processInstanceId);
-                                contentItem.setField(formField.getId());
-                                contentService.saveContentItem(contentItem);
-                            }
-                        }
-                    }
-                }
-            }
-        }
     }
 }

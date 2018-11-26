@@ -16,13 +16,14 @@ import java.util.Date;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Supplier;
 
-import org.flowable.engine.common.runtime.ClockReader;
+import org.flowable.common.engine.impl.runtime.ClockReader;
 import org.flowable.idm.api.Group;
 
 /**
  * Simple cache for groups a user belongs to, which avoid hitting the LDAP system too much. Groups are fetched internally by the engine for example when doing queries, eg when fetching tasks for a
- * candidateUser. Configured through the {@link LDAPConfigurator}.
+ * candidateUser. Configured through the {@link LDAPConfiguration}.
  * 
  * Cached entries have an expiration time. For example when set to one hour, changes to the ldap system around the groups of a user will be visible after that hour.
  * 
@@ -32,13 +33,17 @@ import org.flowable.idm.api.Group;
  */
 public class LDAPGroupCache {
 
-    private final ClockReader clockReader;
+    private final Supplier<ClockReader> clockReader;
     protected Map<String, LDAPGroupCacheEntry> groupCache;
     protected long expirationTime;
 
     protected LDAPGroupCacheListener ldapCacheListener;
 
     public LDAPGroupCache(final int cacheSize, final long expirationTime, final ClockReader clockReader) {
+        this(cacheSize, expirationTime, () -> clockReader);
+    }
+
+    public LDAPGroupCache(final int cacheSize, final long expirationTime, final Supplier<ClockReader> clockReader) {
         this.clockReader = clockReader;
 
         // From
@@ -47,6 +52,7 @@ public class LDAPGroupCache {
 
             private static final long serialVersionUID = 5207574193173514579L;
 
+            @Override
             protected boolean removeEldestEntry(Map.Entry<String, LDAPGroupCacheEntry> eldest) {
                 boolean removeEldest = size() > cacheSize;
 
@@ -62,13 +68,13 @@ public class LDAPGroupCache {
     }
 
     public void add(String userId, List<Group> groups) {
-        this.groupCache.put(userId, new LDAPGroupCacheEntry(clockReader.getCurrentTime(), groups));
+        this.groupCache.put(userId, new LDAPGroupCacheEntry(clockReader.get().getCurrentTime(), groups));
     }
 
     public List<Group> get(String userId) {
         LDAPGroupCacheEntry cacheEntry = groupCache.get(userId);
         if (cacheEntry != null) {
-            if ((clockReader.getCurrentTime().getTime() - cacheEntry.getTimestamp().getTime()) < expirationTime) {
+            if ((clockReader.get().getCurrentTime().getTime() - cacheEntry.getTimestamp().getTime()) < expirationTime) {
 
                 if (ldapCacheListener != null) {
                     ldapCacheListener.cacheHit(userId);

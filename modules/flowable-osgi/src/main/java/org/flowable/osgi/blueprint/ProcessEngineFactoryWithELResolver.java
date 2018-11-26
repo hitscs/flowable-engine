@@ -3,20 +3,21 @@ package org.flowable.osgi.blueprint;
 import java.util.ArrayList;
 import java.util.List;
 
-import javax.el.ArrayELResolver;
-import javax.el.BeanELResolver;
-import javax.el.CompositeELResolver;
-import javax.el.ELResolver;
-import javax.el.ListELResolver;
-import javax.el.MapELResolver;
-
-import org.flowable.engine.delegate.VariableScope;
+import org.flowable.common.engine.api.variable.VariableContainer;
+import org.flowable.common.engine.impl.de.odysseus.el.ExpressionFactoryImpl;
+import org.flowable.common.engine.impl.javax.el.ArrayELResolver;
+import org.flowable.common.engine.impl.javax.el.BeanELResolver;
+import org.flowable.common.engine.impl.javax.el.CompositeELResolver;
+import org.flowable.common.engine.impl.javax.el.CouldNotResolvePropertyELResolver;
+import org.flowable.common.engine.impl.javax.el.ELResolver;
+import org.flowable.common.engine.impl.javax.el.ListELResolver;
+import org.flowable.common.engine.impl.javax.el.MapELResolver;
+import org.flowable.common.engine.impl.scripting.BeansResolverFactory;
+import org.flowable.common.engine.impl.scripting.ResolverFactory;
+import org.flowable.common.engine.impl.scripting.ScriptBindingsFactory;
 import org.flowable.engine.impl.cfg.ProcessEngineConfigurationImpl;
-import org.flowable.engine.impl.el.ExpressionManager;
-import org.flowable.engine.impl.el.VariableScopeElResolver;
-import org.flowable.engine.impl.scripting.BeansResolverFactory;
-import org.flowable.engine.impl.scripting.ResolverFactory;
-import org.flowable.engine.impl.scripting.ScriptBindingsFactory;
+import org.flowable.engine.impl.delegate.invocation.DefaultDelegateInterceptor;
+import org.flowable.engine.impl.el.ProcessExpressionManager;
 import org.flowable.engine.impl.scripting.VariableScopeResolverFactory;
 import org.flowable.osgi.OsgiScriptingEngines;
 
@@ -28,11 +29,11 @@ public class ProcessEngineFactoryWithELResolver extends ProcessEngineFactory {
     @Override
     public void init() throws Exception {
         ProcessEngineConfigurationImpl configImpl = (ProcessEngineConfigurationImpl) getProcessEngineConfiguration();
-        configImpl.setExpressionManager(new BlueprintExpressionManager(configImpl));
+        configImpl.setExpressionManager(new BlueprintExpressionManager());
 
         List<ResolverFactory> resolverFactories = configImpl.getResolverFactories();
         if (resolverFactories == null) {
-            resolverFactories = new ArrayList<ResolverFactory>();
+            resolverFactories = new ArrayList<>();
             resolverFactories.add(new VariableScopeResolverFactory());
             resolverFactories.add(new BeansResolverFactory());
         }
@@ -41,16 +42,17 @@ public class ProcessEngineFactoryWithELResolver extends ProcessEngineFactory {
         super.init();
     }
 
-    public class BlueprintExpressionManager extends ExpressionManager {
+    public class BlueprintExpressionManager extends ProcessExpressionManager {
 
-        public BlueprintExpressionManager(ProcessEngineConfigurationImpl processEngineConfiguration) {
-            super(processEngineConfiguration);
+        public BlueprintExpressionManager() {
+            this.delegateInterceptor = new DefaultDelegateInterceptor();
+            this.expressionFactory = new ExpressionFactoryImpl();
         }
 
         @Override
-        protected ELResolver createElResolver(VariableScope variableScope) {
+        protected ELResolver createElResolver(VariableContainer variableContainer) {
             CompositeELResolver compositeElResolver = new CompositeELResolver();
-            compositeElResolver.add(new VariableScopeElResolver(variableScope));
+            compositeElResolver.add(createVariableElResolver(variableContainer));
             if (blueprintContextELResolver != null) {
                 compositeElResolver.add(blueprintContextELResolver);
             }
@@ -59,8 +61,10 @@ public class ProcessEngineFactoryWithELResolver extends ProcessEngineFactory {
             compositeElResolver.add(new ArrayELResolver());
             compositeElResolver.add(new ListELResolver());
             compositeElResolver.add(new MapELResolver());
+            compositeElResolver.add(new CouldNotResolvePropertyELResolver());
             return compositeElResolver;
         }
+
     }
 
     public void setBlueprintELResolver(BlueprintELResolver blueprintELResolver) {

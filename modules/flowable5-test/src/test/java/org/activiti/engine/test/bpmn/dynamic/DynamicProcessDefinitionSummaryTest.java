@@ -25,7 +25,6 @@ import org.activiti.engine.impl.test.PluggableFlowableTestCase;
 import org.flowable.engine.DynamicBpmnConstants;
 import org.flowable.engine.dynamic.DynamicProcessDefinitionSummary;
 import org.flowable.engine.runtime.ProcessInstance;
-import org.flowable.engine.task.Task;
 import org.flowable.engine.test.Deployment;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -37,9 +36,9 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
  */
 public class DynamicProcessDefinitionSummaryTest extends PluggableFlowableTestCase implements DynamicBpmnConstants, PropertiesParserConstants {
 
-    private final String TASK_ONE_SID = "sid-B94D5D22-E93E-4401-ADC5-C5C073E1EEB4";
-    private final String TASK_TWO_SID = "sid-B1C37EBE-A273-4DDE-B909-89302638526A";
-    private final String SCRIPT_TASK_SID = "sid-A403BAE0-E367-449A-90B2-48834FCAA2F9";
+    private static final String TASK_ONE_SID = "sid-B94D5D22-E93E-4401-ADC5-C5C073E1EEB4";
+    private static final String TASK_TWO_SID = "sid-B1C37EBE-A273-4DDE-B909-89302638526A";
+    private static final String SCRIPT_TASK_SID = "sid-A403BAE0-E367-449A-90B2-48834FCAA2F9";
 
     public void testProcessDefinitionInfoCacheIsEnabledWithPluggableActivitiTestCase() throws Exception {
         assertThat(processEngineConfiguration.isEnableProcessDefinitionInfoCache(), is(true));
@@ -109,10 +108,10 @@ public class DynamicProcessDefinitionSummaryTest extends PluggableFlowableTestCa
         // verify if runtime is up to date
         runtimeService.startProcessInstanceById(processDefinitionId);
         // bob and david both should have a single task.
-        Task bobTask = taskService.createTaskQuery().taskCandidateUser("bob").singleResult();
+        org.flowable.task.api.Task bobTask = taskService.createTaskQuery().taskCandidateUser("bob").singleResult();
         assertThat("Bob must have one task", bobTask, is(notNullValue()));
 
-        Task davidTask = taskService.createTaskQuery().taskCandidateUser("david").singleResult();
+        org.flowable.task.api.Task davidTask = taskService.createTaskQuery().taskCandidateUser("david").singleResult();
         assertThat("David must have one task", davidTask, is(not(nullValue())));
     }
 
@@ -141,10 +140,10 @@ public class DynamicProcessDefinitionSummaryTest extends PluggableFlowableTestCa
         // verify if runtime is up to date
         runtimeService.startProcessInstanceById(processDefinitionId);
 
-        Task bobTask = taskService.createTaskQuery().taskCandidateUser("bob").singleResult();
+        org.flowable.task.api.Task bobTask = taskService.createTaskQuery().taskCandidateUser("bob").singleResult();
         assertThat("Bob must have one task", bobTask, is(notNullValue()));
 
-        List<Task> davidTasks = taskService.createTaskQuery().taskCandidateUser("david").list();
+        List<org.flowable.task.api.Task> davidTasks = taskService.createTaskQuery().taskCandidateUser("david").list();
         assertThat("David must have two task", davidTasks.size(), is(2));
     }
 

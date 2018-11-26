@@ -16,6 +16,9 @@ import java.util.HashMap;
 import java.util.Map;
 
 import org.flowable.engine.runtime.ProcessInstance;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 public class ProcessInstanceQueryEscapeClauseTest extends AbstractEscapeClauseTestCase {
 
@@ -27,7 +30,7 @@ public class ProcessInstanceQueryEscapeClauseTest extends AbstractEscapeClauseTe
 
     private ProcessInstance processInstance2;
 
-    @Override
+    @BeforeEach
     protected void setUp() throws Exception {
         deploymentOneId = repositoryService
                 .createDeployment()
@@ -43,26 +46,25 @@ public class ProcessInstanceQueryEscapeClauseTest extends AbstractEscapeClauseTe
                 .deploy()
                 .getId();
 
-        Map<String, Object> vars = new HashMap<String, Object>();
+        Map<String, Object> vars = new HashMap<>();
         vars.put("var1", "One%");
         processInstance1 = runtimeService.startProcessInstanceByKeyAndTenantId("oneTaskProcess", vars, "One%");
         runtimeService.setProcessInstanceName(processInstance1.getId(), "One%");
 
-        vars = new HashMap<String, Object>();
+        vars = new HashMap<>();
         vars.put("var1", "Two_");
         processInstance2 = runtimeService.startProcessInstanceByKeyAndTenantId("oneTaskProcess", vars, "Two_");
         runtimeService.setProcessInstanceName(processInstance2.getId(), "Two_");
 
-        super.setUp();
     }
 
-    @Override
+    @AfterEach
     protected void tearDown() throws Exception {
-        super.tearDown();
         repositoryService.deleteDeployment(deploymentOneId, true);
         repositoryService.deleteDeployment(deploymentTwoId, true);
     }
 
+    @Test
     public void testQueryByTenantIdLike() {
         // tenantIdLike
         ProcessInstance processInstance = runtimeService.createProcessInstanceQuery().processInstanceTenantIdLike("%\\%%").singleResult();
@@ -83,6 +85,7 @@ public class ProcessInstanceQueryEscapeClauseTest extends AbstractEscapeClauseTe
         assertEquals(processInstance2.getId(), processInstance.getId());
     }
 
+    @Test
     public void testQueryByProcessInstanceNameLike() {
         // processInstanceNameLike
         assertNotNull(runtimeService.createProcessInstanceQuery().processInstanceNameLike("%\\%%").singleResult());
@@ -99,6 +102,7 @@ public class ProcessInstanceQueryEscapeClauseTest extends AbstractEscapeClauseTe
         assertEquals(processInstance2.getId(), runtimeService.createProcessInstanceQuery().or().processInstanceNameLike("%\\_%").processDefinitionId("undefined").singleResult().getId());
     }
 
+    @Test
     public void testQueryProcessInstanceNameLikeIgnoreCase() {
         // processInstanceNameLike
         assertNotNull(runtimeService.createProcessInstanceQuery().processInstanceNameLikeIgnoreCase("%\\%%").singleResult());
@@ -115,6 +119,7 @@ public class ProcessInstanceQueryEscapeClauseTest extends AbstractEscapeClauseTe
         assertEquals(processInstance2.getId(), runtimeService.createProcessInstanceQuery().or().processInstanceNameLikeIgnoreCase("%\\_%").processDefinitionId("undefined").singleResult().getId());
     }
 
+    @Test
     public void testQueryLikeByQueryVariableValue() {
         // queryVariableValue
         ProcessInstance processInstance = runtimeService.createProcessInstanceQuery().variableValueLike("var1", "%\\%%").singleResult();
@@ -135,6 +140,7 @@ public class ProcessInstanceQueryEscapeClauseTest extends AbstractEscapeClauseTe
         assertEquals(processInstance2.getId(), processInstance.getId());
     }
 
+    @Test
     public void testQueryLikeByQueryVariableValueIgnoreCase() {
         // queryVariableValueIgnoreCase
         ProcessInstance processInstance = runtimeService.createProcessInstanceQuery().variableValueLikeIgnoreCase("var1", "%\\%%").singleResult();

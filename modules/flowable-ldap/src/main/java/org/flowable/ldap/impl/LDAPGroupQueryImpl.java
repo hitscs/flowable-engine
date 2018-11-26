@@ -21,16 +21,14 @@ import javax.naming.directory.InitialDirContext;
 import javax.naming.directory.SearchControls;
 import javax.naming.directory.SearchResult;
 
-import org.flowable.engine.common.api.FlowableException;
-import org.flowable.engine.common.api.FlowableIllegalArgumentException;
-import org.flowable.engine.common.impl.Page;
+import org.flowable.common.engine.api.FlowableException;
+import org.flowable.common.engine.impl.interceptor.CommandContext;
 import org.flowable.idm.api.Group;
 import org.flowable.idm.engine.impl.GroupQueryImpl;
-import org.flowable.idm.engine.impl.interceptor.CommandContext;
 import org.flowable.idm.engine.impl.persistence.entity.GroupEntity;
 import org.flowable.idm.engine.impl.persistence.entity.GroupEntityImpl;
 import org.flowable.ldap.LDAPCallBack;
-import org.flowable.ldap.LDAPConfigurator;
+import org.flowable.ldap.LDAPConfiguration;
 import org.flowable.ldap.LDAPGroupCache;
 import org.flowable.ldap.LDAPTemplate;
 
@@ -38,10 +36,10 @@ public class LDAPGroupQueryImpl extends GroupQueryImpl {
 
     private static final long serialVersionUID = 1L;
 
-    protected LDAPConfigurator ldapConfigurator;
+    protected LDAPConfiguration ldapConfigurator;
     protected LDAPGroupCache ldapGroupCache;
 
-    public LDAPGroupQueryImpl(LDAPConfigurator ldapConfigurator, LDAPGroupCache ldapGroupCache) {
+    public LDAPGroupQueryImpl(LDAPConfiguration ldapConfigurator, LDAPGroupCache ldapGroupCache) {
         this.ldapConfigurator = ldapConfigurator;
         this.ldapGroupCache = ldapGroupCache;
     }
@@ -52,19 +50,21 @@ public class LDAPGroupQueryImpl extends GroupQueryImpl {
     }
 
     @Override
-    public List<Group> executeList(CommandContext commandContext, Page page) {
+    public List<Group> executeList(CommandContext commandContext) {
         return executeQuery();
     }
 
     protected List<Group> executeQuery() {
         if (getUserId() != null) {
             return findGroupsByUser(getUserId());
+        } else if (getId() != null) {
+            return findGroupsById(getId());
         } else {
-            throw new FlowableIllegalArgumentException("This query is not supported by the LDAPGroupManager");
+            return findAllGroups();
         }
     }
 
-    protected List<Group> findGroupsByUser(final String userId) {
+    protected List<Group> findGroupsByUser(String userId) {
 
         // First try the cache (if one is defined)
         if (ldapGroupCache != null) {
@@ -74,15 +74,36 @@ public class LDAPGroupQueryImpl extends GroupQueryImpl {
             }
         }
 
-        // Do the search against Ldap
+        String searchExpression = ldapConfigurator.getLdapQueryBuilder().buildQueryGroupsForUser(ldapConfigurator, userId);
+        List<Group> groups = executeGroupQuery(searchExpression);
+
+        // Cache results for later
+        if (ldapGroupCache != null) {
+            ldapGroupCache.add(userId, groups);
+        }
+
+        return groups;
+    }
+
+    protected List<Group> findGroupsById(String id) {
+        String searchExpression = ldapConfigurator.getLdapQueryBuilder().buildQueryGroupsById(ldapConfigurator, id);
+        return executeGroupQuery(searchExpression);
+    }
+
+    protected List<Group> findAllGroups() {
+        String searchExpression = ldapConfigurator.getQueryAllGroups();
+        List<Group> groups = executeGroupQuery(searchExpression);
+        return groups;
+    }
+
+    protected List<Group> executeGroupQuery(final String searchExpression) {
         LDAPTemplate ldapTemplate = new LDAPTemplate(ldapConfigurator);
         return ldapTemplate.execute(new LDAPCallBack<List<Group>>() {
 
+            @Override
             public List<Group> executeInContext(InitialDirContext initialDirContext) {
 
-                String searchExpression = ldapConfigurator.getLdapQueryBuilder().buildQueryGroupsForUser(ldapConfigurator, userId);
-
-                List<Group> groups = new ArrayList<Group>();
+                List<Group> groups = new ArrayList<>();
                 try {
                     String baseDn = ldapConfigurator.getGroupBaseDn() != null ? ldapConfigurator.getGroupBaseDn() : ldapConfigurator.getBaseDn();
                     NamingEnumeration<?> namingEnum = initialDirContext.search(baseDn, searchExpression, createSearchControls());
@@ -104,15 +125,10 @@ public class LDAPGroupQueryImpl extends GroupQueryImpl {
 
                     namingEnum.close();
 
-                    // Cache results for later
-                    if (ldapGroupCache != null) {
-                        ldapGroupCache.add(userId, groups);
-                    }
-
                     return groups;
 
                 } catch (NamingException e) {
-                    throw new FlowableException("Could not find groups for user " + userId, e);
+                    throw new FlowableException("Could not find groups " + searchExpression, e);
                 }
             }
 

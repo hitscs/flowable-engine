@@ -15,8 +15,7 @@ package org.flowable.engine.impl.persistence.entity;
 import java.util.List;
 
 import org.flowable.bpmn.model.Signal;
-import org.flowable.engine.common.impl.Page;
-import org.flowable.engine.common.impl.persistence.entity.EntityManager;
+import org.flowable.common.engine.impl.persistence.entity.EntityManager;
 import org.flowable.engine.impl.EventSubscriptionQueryImpl;
 import org.flowable.engine.runtime.EventSubscription;
 
@@ -48,6 +47,8 @@ public interface EventSubscriptionEntityManager extends EntityManager<EventSubsc
     /* Delete */
 
     void deleteEventSubscriptionsForProcessDefinition(String processDefinitionId);
+    
+    void deleteEventSubscriptionsByExecutionId(String executionId);
 
     /* Event receival */
 
@@ -67,7 +68,7 @@ public interface EventSubscriptionEntityManager extends EntityManager<EventSubsc
 
     List<EventSubscriptionEntity> findEventSubscriptionsByTypeAndProcessDefinitionId(String type, String processDefinitionId, String tenantId);
 
-    List<EventSubscription> findEventSubscriptionsByQueryCriteria(EventSubscriptionQueryImpl eventSubscriptionQueryImpl, Page page);
+    List<EventSubscription> findEventSubscriptionsByQueryCriteria(EventSubscriptionQueryImpl eventSubscriptionQueryImpl);
 
     long findEventSubscriptionCountByQueryCriteria(EventSubscriptionQueryImpl eventSubscriptionQueryImpl);
 

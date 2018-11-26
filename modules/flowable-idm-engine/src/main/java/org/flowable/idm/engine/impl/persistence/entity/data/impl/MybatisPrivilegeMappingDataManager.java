@@ -13,15 +13,17 @@
 package org.flowable.idm.engine.impl.persistence.entity.data.impl;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
+import org.flowable.idm.api.PrivilegeMapping;
 import org.flowable.idm.engine.IdmEngineConfiguration;
 import org.flowable.idm.engine.impl.persistence.entity.PrivilegeMappingEntity;
 import org.flowable.idm.engine.impl.persistence.entity.PrivilegeMappingEntityImpl;
-import org.flowable.idm.engine.impl.persistence.entity.data.AbstractDataManager;
+import org.flowable.idm.engine.impl.persistence.entity.data.AbstractIdmDataManager;
 import org.flowable.idm.engine.impl.persistence.entity.data.PrivilegeMappingDataManager;
 
-public class MybatisPrivilegeMappingDataManager extends AbstractDataManager<PrivilegeMappingEntity> implements PrivilegeMappingDataManager {
+public class MybatisPrivilegeMappingDataManager extends AbstractIdmDataManager<PrivilegeMappingEntity> implements PrivilegeMappingDataManager {
 
     public MybatisPrivilegeMappingDataManager(IdmEngineConfiguration idmEngineConfiguration) {
         super(idmEngineConfiguration);
@@ -39,23 +41,29 @@ public class MybatisPrivilegeMappingDataManager extends AbstractDataManager<Priv
 
     @Override
     public void deleteByPrivilegeId(String privilegeId) {
-        getDbSqlSession().delete("deleteByPrivilegeId", privilegeId);
+        getDbSqlSession().delete("deleteByPrivilegeId", privilegeId, getManagedEntityClass());
     }
 
     @Override
     public void deleteByPrivilegeIdAndUserId(String privilegeId, String userId) {
-        Map<String, String> params = new HashMap<String, String>();
+        Map<String, String> params = new HashMap<>();
         params.put("privilegeId", privilegeId);
         params.put("userId", userId);
-        getDbSqlSession().delete("deleteByPrivilegeIdAndUserId", params);
+        getDbSqlSession().delete("deleteByPrivilegeIdAndUserId", params, getManagedEntityClass());
     }
 
     @Override
     public void deleteByPrivilegeIdAndGroupId(String privilegeId, String groupId) {
-        Map<String, String> params = new HashMap<String, String>();
+        Map<String, String> params = new HashMap<>();
         params.put("privilegeId", privilegeId);
         params.put("groupId", groupId);
-        getDbSqlSession().delete("deleteByPrivilegeIdAndGroupId", params);
+        getDbSqlSession().delete("deleteByPrivilegeIdAndGroupId", params, getManagedEntityClass());
+    }
+    
+    @Override
+    @SuppressWarnings("unchecked")
+    public List<PrivilegeMapping> getPrivilegeMappingsByPrivilegeId(String privilegeId) {
+        return (List<PrivilegeMapping>) getDbSqlSession().selectList("selectPrivilegeMappingsByPrivilegeId", privilegeId); 
     }
 
 }

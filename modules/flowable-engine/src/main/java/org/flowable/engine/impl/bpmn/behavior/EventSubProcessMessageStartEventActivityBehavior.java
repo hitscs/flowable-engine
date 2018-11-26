@@ -23,15 +23,16 @@ import org.flowable.bpmn.model.MessageEventDefinition;
 import org.flowable.bpmn.model.StartEvent;
 import org.flowable.bpmn.model.SubProcess;
 import org.flowable.bpmn.model.ValuedDataObject;
+import org.flowable.common.engine.impl.context.Context;
+import org.flowable.common.engine.impl.interceptor.CommandContext;
 import org.flowable.engine.delegate.DelegateExecution;
 import org.flowable.engine.history.DeleteReason;
-import org.flowable.engine.impl.context.Context;
-import org.flowable.engine.impl.interceptor.CommandContext;
 import org.flowable.engine.impl.persistence.entity.EventSubscriptionEntity;
 import org.flowable.engine.impl.persistence.entity.EventSubscriptionEntityManager;
 import org.flowable.engine.impl.persistence.entity.ExecutionEntity;
 import org.flowable.engine.impl.persistence.entity.ExecutionEntityManager;
 import org.flowable.engine.impl.persistence.entity.MessageEventSubscriptionEntity;
+import org.flowable.engine.impl.util.CommandContextUtil;
 
 /**
  * Implementation of the BPMN 2.0 event subprocess message start event.
@@ -48,6 +49,7 @@ public class EventSubProcessMessageStartEventActivityBehavior extends AbstractBp
         this.messageEventDefinition = messageEventDefinition;
     }
 
+    @Override
     public void execute(DelegateExecution execution) {
         StartEvent startEvent = (StartEvent) execution.getCurrentFlowElement();
         EventSubProcess eventSubProcess = (EventSubProcess) startEvent.getSubProcess();
@@ -64,20 +66,21 @@ public class EventSubProcessMessageStartEventActivityBehavior extends AbstractBp
     @Override
     public void trigger(DelegateExecution execution, String triggerName, Object triggerData) {
         CommandContext commandContext = Context.getCommandContext();
-        ExecutionEntityManager executionEntityManager = commandContext.getExecutionEntityManager();
+        ExecutionEntityManager executionEntityManager = CommandContextUtil.getExecutionEntityManager(commandContext);
         ExecutionEntity executionEntity = (ExecutionEntity) execution;
 
         StartEvent startEvent = (StartEvent) execution.getCurrentFlowElement();
         if (startEvent.isInterrupting()) {
-            List<ExecutionEntity> childExecutions = executionEntityManager.findChildExecutionsByParentExecutionId(executionEntity.getParentId());
-            for (ExecutionEntity childExecution : childExecutions) {
-                if (!childExecution.getId().equals(executionEntity.getId())) {
-                    executionEntityManager.deleteExecutionAndRelatedData(childExecution,
-                            DeleteReason.EVENT_SUBPROCESS_INTERRUPTING + "(" + startEvent.getId() + ")", false);
+            List<ExecutionEntity> childExecutions = executionEntityManager.collectChildren(executionEntity.getParent());
+            for (int i = childExecutions.size() - 1; i >= 0; i--) {
+                ExecutionEntity childExecutionEntity = childExecutions.get(i);
+                if (!childExecutionEntity.isEnded() && !childExecutionEntity.getId().equals(executionEntity.getId())) {
+                    executionEntityManager.deleteExecutionAndRelatedData(childExecutionEntity,
+                            DeleteReason.EVENT_SUBPROCESS_INTERRUPTING + "(" + startEvent.getId() + ")");
                 }
             }
 
-            EventSubscriptionEntityManager eventSubscriptionEntityManager = Context.getCommandContext().getEventSubscriptionEntityManager();
+            EventSubscriptionEntityManager eventSubscriptionEntityManager = CommandContextUtil.getEventSubscriptionEntityManager(commandContext);
             List<EventSubscriptionEntity> eventSubscriptions = executionEntity.getEventSubscriptions();
 
             for (EventSubscriptionEntity eventSubscription : eventSubscriptions) {
@@ -95,12 +98,14 @@ public class EventSubProcessMessageStartEventActivityBehavior extends AbstractBp
 
         ExecutionEntity outgoingFlowExecution = executionEntityManager.createChildExecution(newSubProcessExecution);
         outgoingFlowExecution.setCurrentFlowElement(startEvent);
+        
+        CommandContextUtil.getHistoryManager(commandContext).recordActivityStart(outgoingFlowExecution);
 
         leave(outgoingFlowExecution);
     }
 
     protected Map<String, Object> processDataObjects(Collection<ValuedDataObject> dataObjects) {
-        Map<String, Object> variablesMap = new HashMap<String, Object>();
+        Map<String, Object> variablesMap = new HashMap<>();
         // convert data objects to process variables
         if (dataObjects != null) {
             for (ValuedDataObject dataObject : dataObjects) {

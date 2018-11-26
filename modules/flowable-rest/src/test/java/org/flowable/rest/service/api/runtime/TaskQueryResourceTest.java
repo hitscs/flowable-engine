@@ -22,12 +22,13 @@ import java.util.List;
 import org.apache.http.HttpStatus;
 import org.flowable.engine.runtime.Execution;
 import org.flowable.engine.runtime.ProcessInstance;
-import org.flowable.engine.task.DelegationState;
-import org.flowable.engine.task.IdentityLinkType;
-import org.flowable.engine.task.Task;
 import org.flowable.engine.test.Deployment;
+import org.flowable.identitylink.api.IdentityLinkType;
 import org.flowable.rest.service.BaseSpringRestTestCase;
 import org.flowable.rest.service.api.RestUrls;
+import org.flowable.task.api.DelegationState;
+import org.flowable.task.api.Task;
+import org.junit.Test;
 
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
@@ -42,6 +43,7 @@ public class TaskQueryResourceTest extends BaseSpringRestTestCase {
     /**
      * Test querying tasks. GET runtime/tasks
      */
+    @Test
     @Deployment
     public void testQueryTasks() throws Exception {
         try {
@@ -176,6 +178,15 @@ public class TaskQueryResourceTest extends BaseSpringRestTestCase {
             requestNode.removeAll();
             requestNode.put("processInstanceId", processInstance.getId());
             assertResultsPresentInPostDataResponse(url, requestNode, processTask.getId());
+            
+            // Process instance with children filtering
+            requestNode.removeAll();
+            requestNode.put("processInstanceIdWithChildren", processInstance.getId());
+            assertResultsPresentInPostDataResponse(url, requestNode, processTask.getId());
+            
+            requestNode.removeAll();
+            requestNode.put("processInstanceIdWithChildren", "nonexisting");
+            assertResultsPresentInPostDataResponse(url, requestNode);
 
             // Execution filtering
             requestNode.removeAll();
@@ -301,9 +312,10 @@ public class TaskQueryResourceTest extends BaseSpringRestTestCase {
     /**
      * Test querying tasks using task and process variables. GET runtime/tasks
      */
+    @Test
     @Deployment
     public void testQueryTasksWithVariables() throws Exception {
-        HashMap<String, Object> processVariables = new HashMap<String, Object>();
+        HashMap<String, Object> processVariables = new HashMap<>();
         processVariables.put("stringVar", "Azerty");
         processVariables.put("intVar", 67890);
         processVariables.put("booleanVar", false);
@@ -311,7 +323,7 @@ public class TaskQueryResourceTest extends BaseSpringRestTestCase {
         ProcessInstance processInstance = runtimeService.startProcessInstanceByKey("oneTaskProcess", processVariables);
         Task processTask = taskService.createTaskQuery().processInstanceId(processInstance.getId()).singleResult();
 
-        HashMap<String, Object> variables = new HashMap<String, Object>();
+        HashMap<String, Object> variables = new HashMap<>();
         variables.put("stringVar", "Abcdef");
         variables.put("intVar", 12345);
         variables.put("booleanVar", true);
@@ -564,13 +576,14 @@ public class TaskQueryResourceTest extends BaseSpringRestTestCase {
     /**
      * Test querying tasks. GET runtime/tasks
      */
+    @Test
     public void testQueryTasksWithPaging() throws Exception {
         try {
             Calendar adhocTaskCreate = Calendar.getInstance();
             adhocTaskCreate.set(Calendar.MILLISECOND, 0);
 
             processEngineConfiguration.getClock().setCurrentTime(adhocTaskCreate.getTime());
-            List<String> taskIdList = new ArrayList<String>();
+            List<String> taskIdList = new ArrayList<>();
             for (int i = 0; i < 10; i++) {
                 Task adhocTask = taskService.newTask();
                 adhocTask.setAssignee("gonzo");

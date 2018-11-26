@@ -33,10 +33,13 @@ import org.flowable.engine.test.Deployment;
 import org.flowable.rest.service.BaseSpringRestTestCase;
 import org.flowable.rest.service.HttpMultipartHelper;
 import org.flowable.rest.service.api.RestUrls;
+import org.junit.Test;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+
+import static org.junit.Assert.*;
 
 /**
  * Test for all REST-operations related to Process instance variables.
@@ -48,13 +51,14 @@ public class ProcessInstanceVariablesCollectionResourceTest extends BaseSpringRe
     /**
      * Test getting all process variables. GET runtime/process-instances/{processInstanceId}/variables
      */
+    @Test
     @Deployment(resources = { "org/flowable/rest/service/api/runtime/ProcessInstanceVariablesCollectionResourceTest.testProcess.bpmn20.xml" })
     public void testGetProcessVariables() throws Exception {
 
         Calendar cal = Calendar.getInstance();
 
         // Start process with all types of variables
-        Map<String, Object> processVariables = new HashMap<String, Object>();
+        Map<String, Object> processVariables = new HashMap<>();
         processVariables.put("stringProcVar", "This is a ProcVariable");
         processVariables.put("intProcVar", 123);
         processVariables.put("longProcVar", 1234L);
@@ -82,6 +86,7 @@ public class ProcessInstanceVariablesCollectionResourceTest extends BaseSpringRe
     /**
      * Test creating a single process variable. POST runtime/process-instance/{processInstanceId}/variables
      */
+    @Test
     @Deployment(resources = { "org/flowable/rest/service/api/runtime/ProcessInstanceVariablesCollectionResourceTest.testProcess.bpmn20.xml" })
     public void testCreateSingleProcessInstanceVariable() throws Exception {
         ProcessInstance processInstance = runtimeService.startProcessInstanceByKey("oneTaskProcess");
@@ -95,7 +100,7 @@ public class ProcessInstanceVariablesCollectionResourceTest extends BaseSpringRe
         // Create a new local variable
         HttpPost httpPost = new HttpPost(SERVER_URL_PREFIX + RestUrls.createRelativeResourceUrl(RestUrls.URL_PROCESS_INSTANCE_VARIABLE_COLLECTION, processInstance.getId()));
         httpPost.setEntity(new StringEntity(requestNode.toString()));
-        CloseableHttpResponse response = executeBinaryRequest(httpPost, HttpStatus.SC_CREATED);
+        CloseableHttpResponse response = executeRequest(httpPost, HttpStatus.SC_CREATED);
         JsonNode responseNode = objectMapper.readTree(response.getEntity().getContent()).get(0);
         closeResponse(response);
         assertNotNull(responseNode);
@@ -112,6 +117,7 @@ public class ProcessInstanceVariablesCollectionResourceTest extends BaseSpringRe
     /**
      * Test creating a single process variable using a binary stream. POST runtime/process-instances/{processInstanceId}/variables
      */
+    @Test
     @Deployment(resources = { "org/flowable/rest/service/api/runtime/ProcessInstanceVariablesCollectionResourceTest.testProcess.bpmn20.xml" })
     public void testCreateSingleBinaryProcessVariable() throws Exception {
         ProcessInstance processInstance = runtimeService.startProcessInstanceByKey("oneTaskProcess");
@@ -119,7 +125,7 @@ public class ProcessInstanceVariablesCollectionResourceTest extends BaseSpringRe
         InputStream binaryContent = new ByteArrayInputStream("This is binary content".getBytes());
 
         // Add name, type and scope
-        Map<String, String> additionalFields = new HashMap<String, String>();
+        Map<String, String> additionalFields = new HashMap<>();
         additionalFields.put("name", "binaryVariable");
         additionalFields.put("type", "binary");
 
@@ -146,6 +152,7 @@ public class ProcessInstanceVariablesCollectionResourceTest extends BaseSpringRe
     /**
      * Test creating a single process variable using a binary stream containing a serializable. POST runtime/process-instances/{processInstanceId}/variables
      */
+    @Test
     @Deployment(resources = { "org/flowable/rest/service/api/runtime/ProcessInstanceVariablesCollectionResourceTest.testProcess.bpmn20.xml" })
     public void testCreateSingleSerializableProcessVariable() throws Exception {
         ProcessInstance processInstance = runtimeService.startProcessInstanceByKey("oneTaskProcess");
@@ -162,7 +169,7 @@ public class ProcessInstanceVariablesCollectionResourceTest extends BaseSpringRe
         InputStream binaryContent = new ByteArrayInputStream(buffer.toByteArray());
 
         // Add name, type and scope
-        Map<String, String> additionalFields = new HashMap<String, String>();
+        Map<String, String> additionalFields = new HashMap<>();
         additionalFields.put("name", "serializableVariable");
         additionalFields.put("type", "serializable");
 
@@ -190,6 +197,7 @@ public class ProcessInstanceVariablesCollectionResourceTest extends BaseSpringRe
     /**
      * Test creating a single process variable, testing edge case exceptions. POST runtime/process-instances/{processInstanceId}/variables
      */
+    @Test
     @Deployment(resources = { "org/flowable/rest/service/api/runtime/ProcessInstanceVariablesCollectionResourceTest.testProcess.bpmn20.xml" })
     public void testCreateSingleProcessVariableEdgeCases() throws Exception {
         // Test adding variable to unexisting execution
@@ -234,6 +242,7 @@ public class ProcessInstanceVariablesCollectionResourceTest extends BaseSpringRe
     /**
      * Test creating a single process variable, testing default types when omitted. POST runtime/process-instances/{processInstanceId}/variables
      */
+    @Test
     @Deployment(resources = { "org/flowable/rest/service/api/runtime/ProcessInstanceVariablesCollectionResourceTest.testProcess.bpmn20.xml" })
     public void testCreateSingleProcessVariableDefaultTypes() throws Exception {
         ProcessInstance processInstance = runtimeService.startProcessInstanceByKey("oneTaskProcess");
@@ -281,6 +290,7 @@ public class ProcessInstanceVariablesCollectionResourceTest extends BaseSpringRe
     /**
      * Test creating multiple process variables in a single call. POST runtime/process-instance/{processInstanceId}/variables
      */
+    @Test
     @Deployment(resources = { "org/flowable/rest/service/api/runtime/ProcessInstanceVariablesCollectionResourceTest.testProcess.bpmn20.xml" })
     public void testCreateMultipleProcessVariables() throws Exception {
 
@@ -359,6 +369,7 @@ public class ProcessInstanceVariablesCollectionResourceTest extends BaseSpringRe
     /**
      * Test creating multiple process variables in a single call. POST runtime/process-instance/{processInstanceId}/variables?override=true
      */
+    @Test
     @Deployment(resources = { "org/flowable/rest/service/api/runtime/ProcessInstanceVariablesCollectionResourceTest.testProcess.bpmn20.xml" })
     public void testCreateMultipleProcessVariablesWithOverride() throws Exception {
 
@@ -398,10 +409,11 @@ public class ProcessInstanceVariablesCollectionResourceTest extends BaseSpringRe
     /**
      * Test deleting all process variables. DELETE runtime/process-instance/{processInstanceId}/variables
      */
+    @Test
     @Deployment(resources = { "org/flowable/rest/service/api/runtime/ProcessInstanceVariablesCollectionResourceTest.testProcess.bpmn20.xml" })
     public void testDeleteAllProcessVariables() throws Exception {
 
-        Map<String, Object> processVariables = new HashMap<String, Object>();
+        Map<String, Object> processVariables = new HashMap<>();
         processVariables.put("var1", "This is a ProcVariable");
         processVariables.put("var2", 123);
         ProcessInstance processInstance = runtimeService.startProcessInstanceByKey("oneTaskProcess", processVariables);

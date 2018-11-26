@@ -21,15 +21,13 @@ import javax.naming.directory.InitialDirContext;
 import javax.naming.directory.SearchControls;
 import javax.naming.directory.SearchResult;
 
-import org.flowable.engine.common.api.FlowableIllegalArgumentException;
-import org.flowable.engine.common.impl.Page;
+import org.flowable.common.engine.impl.interceptor.CommandContext;
 import org.flowable.idm.api.User;
 import org.flowable.idm.engine.impl.UserQueryImpl;
-import org.flowable.idm.engine.impl.interceptor.CommandContext;
 import org.flowable.idm.engine.impl.persistence.entity.UserEntity;
 import org.flowable.idm.engine.impl.persistence.entity.UserEntityImpl;
 import org.flowable.ldap.LDAPCallBack;
-import org.flowable.ldap.LDAPConfigurator;
+import org.flowable.ldap.LDAPConfiguration;
 import org.flowable.ldap.LDAPTemplate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -38,11 +36,11 @@ public class LDAPUserQueryImpl extends UserQueryImpl {
 
     private static final long serialVersionUID = 1L;
 
-    private static Logger logger = LoggerFactory.getLogger(LDAPUserQueryImpl.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(LDAPUserQueryImpl.class);
 
-    protected LDAPConfigurator ldapConfigurator;
+    protected LDAPConfiguration ldapConfigurator;
 
-    public LDAPUserQueryImpl(LDAPConfigurator ldapConfigurator) {
+    public LDAPUserQueryImpl(LDAPConfiguration ldapConfigurator) {
         this.ldapConfigurator = ldapConfigurator;
     }
 
@@ -52,57 +50,48 @@ public class LDAPUserQueryImpl extends UserQueryImpl {
     }
 
     @Override
-    public List<User> executeList(CommandContext commandContext, Page page) {
+    public List<User> executeList(CommandContext commandContext) {
         return executeQuery();
     }
 
     protected List<User> executeQuery() {
         if (getId() != null) {
-            List<User> result = new ArrayList<User>();
+            List<User> result = new ArrayList<>();
             result.add(findById(getId()));
             return result;
+
+        } else if (getIdIgnoreCase() != null) {
+            List<User> result = new ArrayList<>();
+            result.add(findById(getIdIgnoreCase()));
+            return result;
+
         } else if (getFullNameLike() != null) {
+            return executeNameQuery(getFullNameLike());
 
-            final String fullNameLike = getFullNameLike().replaceAll("%", "");
-
-            LDAPTemplate ldapTemplate = new LDAPTemplate(ldapConfigurator);
-            return ldapTemplate.execute(new LDAPCallBack<List<User>>() {
-
-                public List<User> executeInContext(InitialDirContext initialDirContext) {
-                    List<User> result = new ArrayList<User>();
-                    try {
-                        String searchExpression = ldapConfigurator.getLdapQueryBuilder().buildQueryByFullNameLike(ldapConfigurator, fullNameLike);
-                        String baseDn = ldapConfigurator.getUserBaseDn() != null ? ldapConfigurator.getUserBaseDn() : ldapConfigurator.getBaseDn();
-                        NamingEnumeration<?> namingEnum = initialDirContext.search(baseDn, searchExpression, createSearchControls());
-
-                        while (namingEnum.hasMore()) {
-                            SearchResult searchResult = (SearchResult) namingEnum.next();
-
-                            UserEntity user = new UserEntityImpl();
-                            mapSearchResultToUser(searchResult, user);
-                            result.add(user);
-
-                        }
-                        namingEnum.close();
-
-                    } catch (NamingException ne) {
-                        logger.debug("Could not execute LDAP query: {}", ne.getMessage(), ne);
-                        return null;
-                    }
-                    return result;
-                }
-
-            });
+        } else if (getFullNameLikeIgnoreCase() != null) {
+            return executeNameQuery(getFullNameLikeIgnoreCase());
 
         } else {
-            throw new FlowableIllegalArgumentException("Query is currently not supported by LDAPUserManager.");
+            return executeAllUserQuery();
         }
+    }
+
+    protected List<User> executeNameQuery(String name) {
+        String fullName = name.replaceAll("%", "");
+        String searchExpression = ldapConfigurator.getLdapQueryBuilder().buildQueryByFullNameLike(ldapConfigurator, fullName);
+        return executeUsersQuery(searchExpression);
+    }
+
+    protected List<User> executeAllUserQuery() {
+        String searchExpression = ldapConfigurator.getQueryAllUsers();
+        return executeUsersQuery(searchExpression);
     }
 
     protected UserEntity findById(final String userId) {
         LDAPTemplate ldapTemplate = new LDAPTemplate(ldapConfigurator);
         return ldapTemplate.execute(new LDAPCallBack<UserEntity>() {
 
+            @Override
             public UserEntity executeInContext(InitialDirContext initialDirContext) {
                 try {
 
@@ -120,9 +109,40 @@ public class LDAPUserQueryImpl extends UserQueryImpl {
                     return user;
 
                 } catch (NamingException ne) {
-                    logger.debug("Could not find user {} : {}", userId, ne.getMessage(), ne);
+                    LOGGER.error("Could not find user {} : {}", userId, ne.getMessage(), ne);
                     return null;
                 }
+            }
+
+        });
+    }
+
+    protected List<User> executeUsersQuery(final String searchExpression) {
+        LDAPTemplate ldapTemplate = new LDAPTemplate(ldapConfigurator);
+        return ldapTemplate.execute(new LDAPCallBack<List<User>>() {
+
+            @Override
+            public List<User> executeInContext(InitialDirContext initialDirContext) {
+                List<User> result = new ArrayList<>();
+                try {
+                    String baseDn = ldapConfigurator.getUserBaseDn() != null ? ldapConfigurator.getUserBaseDn() : ldapConfigurator.getBaseDn();
+                    NamingEnumeration<?> namingEnum = initialDirContext.search(baseDn, searchExpression, createSearchControls());
+
+                    while (namingEnum.hasMore()) {
+                        SearchResult searchResult = (SearchResult) namingEnum.next();
+
+                        UserEntity user = new UserEntityImpl();
+                        mapSearchResultToUser(searchResult, user);
+                        result.add(user);
+
+                    }
+                    namingEnum.close();
+
+                } catch (NamingException ne) {
+                    LOGGER.debug("Could not execute LDAP query: {}", ne.getMessage(), ne);
+                    return null;
+                }
+                return result;
             }
 
         });

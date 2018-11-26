@@ -14,6 +14,7 @@ package org.flowable.engine.impl.bpmn.parser.factory;
 
 import org.flowable.bpmn.model.Activity;
 import org.flowable.bpmn.model.BoundaryEvent;
+import org.flowable.bpmn.model.BpmnModel;
 import org.flowable.bpmn.model.BusinessRuleTask;
 import org.flowable.bpmn.model.CallActivity;
 import org.flowable.bpmn.model.CancelEventDefinition;
@@ -21,6 +22,7 @@ import org.flowable.bpmn.model.CompensateEventDefinition;
 import org.flowable.bpmn.model.EndEvent;
 import org.flowable.bpmn.model.ErrorEventDefinition;
 import org.flowable.bpmn.model.EventGateway;
+import org.flowable.bpmn.model.EventSubProcess;
 import org.flowable.bpmn.model.ExclusiveGateway;
 import org.flowable.bpmn.model.InclusiveGateway;
 import org.flowable.bpmn.model.IntermediateCatchEvent;
@@ -52,6 +54,7 @@ import org.flowable.engine.impl.bpmn.behavior.CallActivityBehavior;
 import org.flowable.engine.impl.bpmn.behavior.CancelEndEventActivityBehavior;
 import org.flowable.engine.impl.bpmn.behavior.ErrorEndEventActivityBehavior;
 import org.flowable.engine.impl.bpmn.behavior.EventBasedGatewayActivityBehavior;
+import org.flowable.engine.impl.bpmn.behavior.EventSubProcessActivityBehavior;
 import org.flowable.engine.impl.bpmn.behavior.EventSubProcessErrorStartEventActivityBehavior;
 import org.flowable.engine.impl.bpmn.behavior.EventSubProcessMessageStartEventActivityBehavior;
 import org.flowable.engine.impl.bpmn.behavior.EventSubProcessSignalStartEventActivityBehavior;
@@ -124,9 +127,9 @@ public interface ActivityBehaviorFactory {
 
     public abstract ServiceTaskExpressionActivityBehavior createServiceTaskExpressionActivityBehavior(ServiceTask serviceTask);
 
-    public abstract WebServiceActivityBehavior createWebServiceActivityBehavior(ServiceTask serviceTask);
+    public abstract WebServiceActivityBehavior createWebServiceActivityBehavior(ServiceTask serviceTask, BpmnModel bpmnModel);
 
-    public abstract WebServiceActivityBehavior createWebServiceActivityBehavior(SendTask sendTask);
+    public abstract WebServiceActivityBehavior createWebServiceActivityBehavior(SendTask sendTask, BpmnModel bpmnModel);
 
     public abstract MailActivityBehavior createMailActivityBehavior(ServiceTask serviceTask);
 
@@ -145,6 +148,8 @@ public interface ActivityBehaviorFactory {
     public abstract ActivityBehavior createDmnActivityBehavior(ServiceTask serviceTask);
 
     public abstract ActivityBehavior createDmnActivityBehavior(SendTask sendTask);
+
+    public abstract ActivityBehavior createHttpActivityBehavior(ServiceTask serviceTask);
 
     public abstract ShellActivityBehavior createShellActivityBehavior(ServiceTask serviceTask);
 
@@ -165,6 +170,8 @@ public interface ActivityBehaviorFactory {
     public abstract ParallelMultiInstanceBehavior createParallelMultiInstanceBehavior(Activity activity, AbstractBpmnActivityBehavior innerActivityBehavior);
 
     public abstract SubProcessActivityBehavior createSubprocessActivityBehavior(SubProcess subProcess);
+
+    public abstract EventSubProcessActivityBehavior createEventSubprocessActivityBehavior(EventSubProcess eventSubProcess); 
 
     public abstract EventSubProcessErrorStartEventActivityBehavior createEventSubProcessErrorStartEventActivityBehavior(StartEvent startEvent);
 

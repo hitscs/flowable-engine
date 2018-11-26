@@ -38,14 +38,24 @@ public interface IdentityService {
     User newUser(String userId);
 
     /**
-     * Saves the user. If the user already existed, the user is updated.
+     * Saves the user. If the user already existed, the user is updated except user password.
+     * Use {@link #updateUserPassword(User)} to update existing user password.
      * 
      * @param user
      *            user to save, cannot be null.
      * @throws RuntimeException
      *             when a user with the same name already exists.
+     * @see #updateUserPassword(User)
      */
     void saveUser(User user);
+
+    /**
+     * Update user password. Use {@link #saveUser(User)} for new user.
+     *
+     * @param user user password to change, cannot be null.
+     * @see #saveUser(User)
+     */
+    void updateUserPassword(User user);
 
     /**
      * Creates a {@link UserQuery} that allows to programmatically query the users.
@@ -142,7 +152,7 @@ public interface IdentityService {
     /**
      * Retrieves the picture for a given user.
      * 
-     * @returns null if the user doesn't have a picture.
+     * @return null if the user doesn't have a picture.
      * @throws ActivitiObjectNotFoundException
      *             if the user doesn't exist. / Picture getUserPicture(String userId);
      * 

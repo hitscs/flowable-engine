@@ -18,13 +18,19 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.flowable.dmn.model.DecisionRule;
 import org.flowable.dmn.model.HitPolicy;
 import org.joda.time.DateTime;
+import org.joda.time.LocalDate;
+
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonInclude.Include;
 
 /**
  * @author Yvo Swillens
  * @author Erik Winlof
  */
+@JsonInclude(Include.NON_NULL)
 public class DecisionExecutionAuditContainer {
 
     protected String decisionKey;
@@ -35,20 +41,25 @@ public class DecisionExecutionAuditContainer {
     protected Date endTime;
     protected Map<String, Object> inputVariables;
     protected Map<String, String> inputVariableTypes;
-    protected Map<String, Object> outputVariables;
-    protected List<RuleExecutionAuditContainer> ruleExecutions = new ArrayList<RuleExecutionAuditContainer>();
+    protected List<Map<String, Object>> decisionResult = new ArrayList<>();
+    protected Map<String, String> decisionResultTypes = new HashMap<>();
+    protected Map<Integer, RuleExecutionAuditContainer> ruleExecutions = new HashMap<>();
     protected Boolean failed = Boolean.FALSE;
     protected String exceptionMessage;
+    protected String validationMessage;
+    protected Boolean strictMode;
 
     public DecisionExecutionAuditContainer() {
-
     }
 
-    public DecisionExecutionAuditContainer(String decisionKey, String decisionName, HitPolicy hitPolicy, Map<String, Object> inputVariables) {
+    public DecisionExecutionAuditContainer(String decisionKey, String decisionName, HitPolicy hitPolicy, 
+                    Boolean strictMode, Map<String, Object> inputVariables) {
+        
         startTime = new Date();
         this.decisionKey = decisionKey;
         this.decisionName = decisionName;
-        this.hitPolicy = hitPolicy.name();
+        this.hitPolicy = hitPolicy.getValue();
+        this.strictMode = strictMode;
 
         this.inputVariableTypes = getVariablesTypeMap(inputVariables);
 
@@ -68,14 +79,14 @@ public class DecisionExecutionAuditContainer {
             String type = null;
 
             if (value != null) {
-                if (isString(value)) {
-                    type = "string";
-                } else if (isDate(value)) {
+                if (isDate(value)) {
                     type = "date";
                 } else if (isNumber(value)) {
                     type = "number";
                 } else if (isBoolean(value)) {
                     type = "boolean";
+                } else {
+                    type = "string";
                 }
             }
 
@@ -84,33 +95,44 @@ public class DecisionExecutionAuditContainer {
         return variablesTypesMap;
     }
 
-    public void stopAudit(Map<String, Object> result) {
+    public void stopAudit() {
         endTime = new Date();
-        outputVariables = result;
     }
 
-    public void addRuleEntry() {
-        ruleExecutions.add(new RuleExecutionAuditContainer());
+    public void addRuleEntry(DecisionRule rule) {
+        ruleExecutions.put(rule.getRuleNumber(), new RuleExecutionAuditContainer(rule.getRuleNumber()));
     }
 
-    public void markRuleEnd(int ruleRowIndex) {
-        ruleExecutions.get(ruleRowIndex).markRuleEnd();
+    public void markRuleEnd(int ruleNumber) {
+        ruleExecutions.get(ruleNumber).markRuleEnd();
     }
 
-    public void addInputEntry(int ruleRowIndex, String inputEntryId, Boolean executionResult) {
-        ruleExecutions.get(ruleRowIndex).addConditionResult(new ExpressionExecution(inputEntryId, executionResult));
+    public void markRuleValid(int ruleNumber) {
+        ruleExecutions.get(ruleNumber).setValid();
     }
 
-    public void addInputEntry(int ruleRowIndex, String inputEntryId, String exceptionMessage, Boolean executionResult) {
-        ruleExecutions.get(ruleRowIndex).addConditionResult(new ExpressionExecution(inputEntryId, exceptionMessage, executionResult));
+    public void addInputEntry(int ruleNumber, String inputEntryId, Boolean executionResult) {
+        ruleExecutions.get(ruleNumber).addConditionResult(new ExpressionExecution(inputEntryId, executionResult));
     }
 
-    public void addOutputEntry(int ruleRowIndex, String outputEntryId, Object executionResult) {
-        ruleExecutions.get(ruleRowIndex).addConclusionResult(new ExpressionExecution(outputEntryId, executionResult));
+    public void addInputEntry(int ruleNumber, String inputEntryId, String exceptionMessage, Boolean executionResult) {
+        ruleExecutions.get(ruleNumber).addConditionResult(new ExpressionExecution(inputEntryId, exceptionMessage, executionResult));
     }
 
-    public void addOutputEntry(int ruleRowIndex, String outputEntryId, String exceptionMessage, Object executionResult) {
-        ruleExecutions.get(ruleRowIndex).addConclusionResult(new ExpressionExecution(outputEntryId, exceptionMessage, executionResult));
+    public void addOutputEntry(int ruleNumber, String outputEntryId, Object executionResult) {
+        ruleExecutions.get(ruleNumber).addConclusionResult(new ExpressionExecution(outputEntryId, executionResult));
+    }
+
+    public void addOutputEntry(int ruleNumber, String outputEntryId, String exceptionMessage, Object executionResult) {
+        ruleExecutions.get(ruleNumber).addConclusionResult(new ExpressionExecution(outputEntryId, exceptionMessage, executionResult));
+    }
+    
+    public void setDecisionResult(List<Map<String, Object>> decisionResult) {
+        this.decisionResult = decisionResult;
+    }
+    
+    public void addDecisionResultObject(Map<String, Object> decisionResultObject) {
+        this.decisionResult.add(decisionResultObject);
     }
 
     public String getDecisionKey() {
@@ -137,12 +159,12 @@ public class DecisionExecutionAuditContainer {
         return inputVariables;
     }
 
-    public Map<String, Object> getOutputVariables() {
-        return outputVariables;
-    }
-
-    public List<RuleExecutionAuditContainer> getRuleExecutions() {
+    public Map<Integer, RuleExecutionAuditContainer> getRuleExecutions() {
         return ruleExecutions;
+    }
+    
+    public List<Map<String, Object>> getDecisionResult() {
+        return decisionResult;
     }
 
     public String getDmnDeploymentId() {
@@ -169,6 +191,22 @@ public class DecisionExecutionAuditContainer {
         this.exceptionMessage = exceptionMessage;
     }
 
+    public String getValidationMessage() {
+        return validationMessage;
+    }
+
+    public void setValidationMessage(String validationMessage) {
+        this.validationMessage = validationMessage;
+    }
+
+    public Boolean isStrictMode() {
+        return strictMode;
+    }
+
+    public void setStrictMode(Boolean strictMode) {
+        this.strictMode = strictMode;
+    }
+
     public Map<String, String> getInputVariableTypes() {
         return inputVariableTypes;
     }
@@ -176,26 +214,30 @@ public class DecisionExecutionAuditContainer {
     public void setInputVariableTypes(Map<String, String> inputVariableTypes) {
         this.inputVariableTypes = inputVariableTypes;
     }
+    
+    public Map<String, String> getDecisionResultTypes() {
+        return decisionResultTypes;
+    }
 
-    public static boolean isBoolean(Object obj) {
+    public void addDecisionResultType(String decisionResultId, String decisionResultType) {
+        this.decisionResultTypes.put(decisionResultId, decisionResultType);
+    }
+
+    protected static boolean isBoolean(Object obj) {
         return obj instanceof Boolean;
     }
 
-    public static boolean isDate(Object obj) {
-        return (obj instanceof Date || obj instanceof DateTime);
+    protected static boolean isDate(Object obj) {
+        return (obj instanceof Date || obj instanceof DateTime || obj instanceof LocalDate);
     }
 
-    public static boolean isString(Object obj) {
-        return obj instanceof String;
-    }
-
-    public static boolean isNumber(Object obj) {
+    protected static boolean isNumber(Object obj) {
         return obj instanceof Number;
     }
 
     protected Map<String, Object> createDefensiveCopyInputVariables(Map<String, Object> inputVariables) {
 
-        Map<String, Object> defensiveCopyMap = new HashMap<String, Object>();
+        Map<String, Object> defensiveCopyMap = new HashMap<>();
 
         if (inputVariables != null) {
 

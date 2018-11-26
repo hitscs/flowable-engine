@@ -15,10 +15,13 @@ package org.flowable.standalone.escapeclause;
 import java.util.HashMap;
 import java.util.Map;
 
-import org.flowable.engine.history.HistoricVariableInstance;
-import org.flowable.engine.impl.history.HistoryLevel;
+import org.flowable.common.engine.impl.history.HistoryLevel;
+import org.flowable.engine.impl.test.HistoryTestHelper;
 import org.flowable.engine.runtime.ProcessInstance;
-import org.flowable.engine.task.Task;
+import org.flowable.variable.api.history.HistoricVariableInstance;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 public class HistoricVariableInstanceEscapeClauseTest extends AbstractEscapeClauseTestCase {
 
@@ -30,7 +33,7 @@ public class HistoricVariableInstanceEscapeClauseTest extends AbstractEscapeClau
 
     private ProcessInstance processInstance2;
 
-    @Override
+    @BeforeEach
     protected void setUp() throws Exception {
         deploymentOneId = repositoryService
                 .createDeployment()
@@ -46,34 +49,33 @@ public class HistoricVariableInstanceEscapeClauseTest extends AbstractEscapeClau
                 .deploy()
                 .getId();
 
-        Map<String, Object> vars = new HashMap<String, Object>();
+        Map<String, Object> vars = new HashMap<>();
         vars.put("var%", "One%");
         processInstance1 = runtimeService.startProcessInstanceByKeyAndTenantId("oneTaskProcess", vars, "One%");
         runtimeService.setProcessInstanceName(processInstance1.getId(), "One%");
 
-        vars = new HashMap<String, Object>();
+        vars = new HashMap<>();
         vars.put("var_", "Two_");
         processInstance2 = runtimeService.startProcessInstanceByKeyAndTenantId("oneTaskProcess", vars, "Two_");
         runtimeService.setProcessInstanceName(processInstance2.getId(), "Two_");
 
-        Task task = taskService.createTaskQuery().processInstanceId(processInstance1.getId()).singleResult();
+        org.flowable.task.api.Task task = taskService.createTaskQuery().processInstanceId(processInstance1.getId()).singleResult();
         taskService.complete(task.getId());
 
         task = taskService.createTaskQuery().processInstanceId(processInstance2.getId()).singleResult();
         taskService.complete(task.getId());
 
-        super.setUp();
     }
 
-    @Override
+    @AfterEach
     protected void tearDown() throws Exception {
-        super.tearDown();
         repositoryService.deleteDeployment(deploymentOneId, true);
         repositoryService.deleteDeployment(deploymentTwoId, true);
     }
 
+    @Test
     public void testQueryByVariableNameLike() {
-        if (processEngineConfiguration.getHistoryLevel().isAtLeast(HistoryLevel.ACTIVITY)) {
+        if (HistoryTestHelper.isHistoryLevelAtLeast(HistoryLevel.ACTIVITY, processEngineConfiguration)) {
             HistoricVariableInstance historicVariable = historyService.createHistoricVariableInstanceQuery().variableNameLike("%\\%%").singleResult();
             assertNotNull(historicVariable);
             assertEquals(processInstance1.getId(), historicVariable.getProcessInstanceId());
@@ -86,8 +88,9 @@ public class HistoricVariableInstanceEscapeClauseTest extends AbstractEscapeClau
         }
     }
 
+    @Test
     public void testQueryLikeByQueryVariableValue() {
-        if (processEngineConfiguration.getHistoryLevel().isAtLeast(HistoryLevel.ACTIVITY)) {
+        if (HistoryTestHelper.isHistoryLevelAtLeast(HistoryLevel.ACTIVITY, processEngineConfiguration)) {
             HistoricVariableInstance historicVariable = historyService.createHistoricVariableInstanceQuery().variableValueLike("var%", "%\\%%").singleResult();
             assertNotNull(historicVariable);
             assertEquals(processInstance1.getId(), historicVariable.getProcessInstanceId());
@@ -98,8 +101,9 @@ public class HistoricVariableInstanceEscapeClauseTest extends AbstractEscapeClau
         }
     }
 
+    @Test
     public void testQueryLikeByQueryVariableValueIgnoreCase() {
-        if (processEngineConfiguration.getHistoryLevel().isAtLeast(HistoryLevel.ACTIVITY)) {
+        if (HistoryTestHelper.isHistoryLevelAtLeast(HistoryLevel.ACTIVITY, processEngineConfiguration)) {
             HistoricVariableInstance historicVariable = historyService.createHistoricVariableInstanceQuery().variableValueLikeIgnoreCase("var%", "%\\%%").singleResult();
             assertNotNull(historicVariable);
             assertEquals(processInstance1.getId(), historicVariable.getProcessInstanceId());

@@ -17,16 +17,19 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.flowable.bpmn.model.Signal;
-import org.flowable.engine.common.api.FlowableException;
-import org.flowable.engine.common.impl.Page;
-import org.flowable.engine.common.impl.persistence.entity.data.DataManager;
+import org.flowable.common.engine.api.FlowableException;
+import org.flowable.common.engine.impl.persistence.entity.data.DataManager;
 import org.flowable.engine.impl.EventSubscriptionQueryImpl;
 import org.flowable.engine.impl.cfg.ProcessEngineConfigurationImpl;
 import org.flowable.engine.impl.event.EventHandler;
 import org.flowable.engine.impl.jobexecutor.ProcessEventJobHandler;
 import org.flowable.engine.impl.persistence.CountingExecutionEntity;
 import org.flowable.engine.impl.persistence.entity.data.EventSubscriptionDataManager;
+import org.flowable.engine.impl.util.CommandContextUtil;
+import org.flowable.engine.impl.util.CountingEntityUtil;
 import org.flowable.engine.runtime.EventSubscription;
+import org.flowable.job.service.JobService;
+import org.flowable.job.service.impl.persistence.entity.JobEntity;
 
 /**
  * @author Joram Barrez
@@ -116,9 +119,9 @@ public class EventSubscriptionEntityManagerImpl extends AbstractEntityManager<Ev
     public void insert(EventSubscriptionEntity entity, boolean fireCreateEvent) {
         super.insert(entity, fireCreateEvent);
 
-        if (entity.getExecutionId() != null && isExecutionRelatedEntityCountEnabledGlobally()) {
+        if (entity.getExecutionId() != null && CountingEntityUtil.isExecutionRelatedEntityCountEnabledGlobally()) {
             CountingExecutionEntity executionEntity = (CountingExecutionEntity) entity.getExecution();
-            if (isExecutionRelatedEntityCountEnabled(executionEntity)) {
+            if (CountingEntityUtil.isExecutionRelatedEntityCountEnabled(executionEntity)) {
                 executionEntity.setEventSubscriptionCount(executionEntity.getEventSubscriptionCount() + 1);
             }
         }
@@ -126,9 +129,9 @@ public class EventSubscriptionEntityManagerImpl extends AbstractEntityManager<Ev
 
     @Override
     public void delete(EventSubscriptionEntity entity, boolean fireDeleteEvent) {
-        if (entity.getExecutionId() != null && isExecutionRelatedEntityCountEnabledGlobally()) {
+        if (entity.getExecutionId() != null && CountingEntityUtil.isExecutionRelatedEntityCountEnabledGlobally()) {
             CountingExecutionEntity executionEntity = (CountingExecutionEntity) entity.getExecution();
-            if (isExecutionRelatedEntityCountEnabled(executionEntity)) {
+            if (CountingEntityUtil.isExecutionRelatedEntityCountEnabled(executionEntity)) {
                 executionEntity.setEventSubscriptionCount(executionEntity.getEventSubscriptionCount() - 1);
             }
         }
@@ -143,7 +146,7 @@ public class EventSubscriptionEntityManagerImpl extends AbstractEntityManager<Ev
     @Override
     public List<CompensateEventSubscriptionEntity> findCompensateEventSubscriptionsByExecutionIdAndActivityId(String executionId, String activityId) {
         List<EventSubscriptionEntity> eventSubscriptions = findEventSubscriptionsByExecutionAndType(executionId, "compensate");
-        List<CompensateEventSubscriptionEntity> result = new ArrayList<CompensateEventSubscriptionEntity>();
+        List<CompensateEventSubscriptionEntity> result = new ArrayList<>();
         for (EventSubscriptionEntity eventSubscriptionEntity : eventSubscriptions) {
             if (eventSubscriptionEntity instanceof CompensateEventSubscriptionEntity) {
                 if (activityId == null || activityId.equals(eventSubscriptionEntity.getActivityId())) {
@@ -157,7 +160,7 @@ public class EventSubscriptionEntityManagerImpl extends AbstractEntityManager<Ev
     @Override
     public List<CompensateEventSubscriptionEntity> findCompensateEventSubscriptionsByProcessInstanceIdAndActivityId(String processInstanceId, String activityId) {
         List<EventSubscriptionEntity> eventSubscriptions = findEventSubscriptionsByProcessInstanceAndActivityId(processInstanceId, activityId, "compensate");
-        List<CompensateEventSubscriptionEntity> result = new ArrayList<CompensateEventSubscriptionEntity>();
+        List<CompensateEventSubscriptionEntity> result = new ArrayList<>();
         for (EventSubscriptionEntity eventSubscriptionEntity : eventSubscriptions) {
             result.add((CompensateEventSubscriptionEntity) eventSubscriptionEntity);
         }
@@ -178,8 +181,8 @@ public class EventSubscriptionEntityManagerImpl extends AbstractEntityManager<Ev
     }
 
     @Override
-    public List<EventSubscription> findEventSubscriptionsByQueryCriteria(EventSubscriptionQueryImpl eventSubscriptionQueryImpl, Page page) {
-        return eventSubscriptionDataManager.findEventSubscriptionsByQueryCriteria(eventSubscriptionQueryImpl, page);
+    public List<EventSubscription> findEventSubscriptionsByQueryCriteria(EventSubscriptionQueryImpl eventSubscriptionQueryImpl) {
+        return eventSubscriptionDataManager.findEventSubscriptionsByQueryCriteria(eventSubscriptionQueryImpl);
     }
 
     @Override
@@ -246,6 +249,11 @@ public class EventSubscriptionEntityManagerImpl extends AbstractEntityManager<Ev
     public void deleteEventSubscriptionsForProcessDefinition(String processDefinitionId) {
         eventSubscriptionDataManager.deleteEventSubscriptionsForProcessDefinition(processDefinitionId);
     }
+    
+    @Override
+    public void deleteEventSubscriptionsByExecutionId(String executionId) {
+        eventSubscriptionDataManager.deleteEventSubscriptionsByExecutionId(executionId);
+    }
 
     // Processing /////////////////////////////////////////////////////////////
 
@@ -273,7 +281,8 @@ public class EventSubscriptionEntityManagerImpl extends AbstractEntityManager<Ev
     }
 
     protected void scheduleEventAsync(EventSubscriptionEntity eventSubscriptionEntity, Object payload) {
-        JobEntity message = getJobEntityManager().create();
+        JobService jobService = CommandContextUtil.getJobService();
+        JobEntity message = jobService.createJob();
         message.setJobType(JobEntity.JOB_TYPE_MESSAGE);
         message.setJobHandlerType(ProcessEventJobHandler.TYPE);
         message.setJobHandlerConfiguration(eventSubscriptionEntity.getId());
@@ -284,11 +293,11 @@ public class EventSubscriptionEntityManagerImpl extends AbstractEntityManager<Ev
         // message.setEventPayload(payload);
         // }
 
-        getJobManager().scheduleAsyncJob(message);
+        jobService.scheduleAsyncJob(message);
     }
 
     protected List<SignalEventSubscriptionEntity> toSignalEventSubscriptionEntityList(List<EventSubscriptionEntity> result) {
-        List<SignalEventSubscriptionEntity> signalEventSubscriptionEntities = new ArrayList<SignalEventSubscriptionEntity>(result.size());
+        List<SignalEventSubscriptionEntity> signalEventSubscriptionEntities = new ArrayList<>(result.size());
         for (EventSubscriptionEntity eventSubscriptionEntity : result) {
             signalEventSubscriptionEntities.add((SignalEventSubscriptionEntity) eventSubscriptionEntity);
         }
@@ -296,7 +305,7 @@ public class EventSubscriptionEntityManagerImpl extends AbstractEntityManager<Ev
     }
 
     protected List<MessageEventSubscriptionEntity> toMessageEventSubscriptionEntityList(List<EventSubscriptionEntity> result) {
-        List<MessageEventSubscriptionEntity> messageEventSubscriptionEntities = new ArrayList<MessageEventSubscriptionEntity>(result.size());
+        List<MessageEventSubscriptionEntity> messageEventSubscriptionEntities = new ArrayList<>(result.size());
         for (EventSubscriptionEntity eventSubscriptionEntity : result) {
             messageEventSubscriptionEntities.add((MessageEventSubscriptionEntity) eventSubscriptionEntity);
         }

@@ -19,14 +19,14 @@ import java.util.Map;
 import java.util.concurrent.BrokenBarrierException;
 import java.util.concurrent.CyclicBarrier;
 
-import org.flowable.engine.common.api.FlowableOptimisticLockingException;
+import org.flowable.common.engine.api.FlowableOptimisticLockingException;
+import org.flowable.common.engine.impl.interceptor.Command;
+import org.flowable.common.engine.impl.interceptor.CommandContext;
 import org.flowable.engine.impl.cmd.SetExecutionVariablesCmd;
 import org.flowable.engine.impl.cmd.SetTaskVariablesCmd;
-import org.flowable.engine.impl.interceptor.Command;
-import org.flowable.engine.impl.interceptor.CommandContext;
 import org.flowable.engine.impl.test.PluggableFlowableTestCase;
 import org.flowable.engine.runtime.ProcessInstance;
-import org.flowable.engine.task.Task;
+import org.junit.jupiter.api.Test;
 
 public class DuplicateVariableInsertTest extends PluggableFlowableTestCase {
 
@@ -34,6 +34,7 @@ public class DuplicateVariableInsertTest extends PluggableFlowableTestCase {
      * Test for ACT-1887: Inserting the same new variable at the same time, from 2 different threads, using 2 modified commands that use a barrier for starting and a barrier for completing the
      * command, so they each insert a new variable guaranteed.
      */
+    @Test
     public void testDuplicateVariableInsertOnExecution() throws Exception {
         String processDefinitionId = deployOneTaskTestProcess();
         final ProcessInstance processInstance = runtimeService.startProcessInstanceById(processDefinitionId);
@@ -41,7 +42,7 @@ public class DuplicateVariableInsertTest extends PluggableFlowableTestCase {
         final CyclicBarrier startBarrier = new CyclicBarrier(2);
         final CyclicBarrier endBarrier = new CyclicBarrier(2);
 
-        final List<Exception> exceptions = new ArrayList<Exception>();
+        final List<Exception> exceptions = new ArrayList<>();
 
         Thread firstInsertThread = new Thread(new Runnable() {
             @Override
@@ -86,15 +87,16 @@ public class DuplicateVariableInsertTest extends PluggableFlowableTestCase {
      * Test for ACT-1887: Inserting the same new variable at the same time, from 2 different threads, using 2 modified commands that use a barrier for starting and a barrier for completing the
      * command, so they each insert a new variable guaranteed.
      */
+    @Test
     public void testDuplicateVariableInsertOnTask() throws Exception {
         String processDefinitionId = deployOneTaskTestProcess();
         final ProcessInstance processInstance = runtimeService.startProcessInstanceById(processDefinitionId);
-        final Task task = taskService.createTaskQuery().processInstanceId(processInstance.getId()).singleResult();
+        final org.flowable.task.api.Task task = taskService.createTaskQuery().processInstanceId(processInstance.getId()).singleResult();
 
         final CyclicBarrier startBarrier = new CyclicBarrier(2);
         final CyclicBarrier endBarrier = new CyclicBarrier(2);
 
-        final List<Exception> exceptions = new ArrayList<Exception>();
+        final List<Exception> exceptions = new ArrayList<>();
 
         Thread firstInsertThread = new Thread(new Runnable() {
             @Override

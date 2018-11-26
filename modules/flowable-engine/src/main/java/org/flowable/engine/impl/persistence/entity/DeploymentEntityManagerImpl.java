@@ -24,11 +24,11 @@ import org.flowable.bpmn.model.Signal;
 import org.flowable.bpmn.model.SignalEventDefinition;
 import org.flowable.bpmn.model.StartEvent;
 import org.flowable.bpmn.model.TimerEventDefinition;
+import org.flowable.common.engine.api.delegate.event.FlowableEngineEventType;
+import org.flowable.common.engine.api.repository.EngineResource;
+import org.flowable.common.engine.impl.persistence.entity.data.DataManager;
+import org.flowable.common.engine.impl.util.CollectionUtil;
 import org.flowable.engine.ProcessEngineConfiguration;
-import org.flowable.engine.common.impl.Page;
-import org.flowable.engine.common.impl.persistence.entity.data.DataManager;
-import org.flowable.engine.common.impl.util.CollectionUtil;
-import org.flowable.engine.delegate.event.FlowableEngineEventType;
 import org.flowable.engine.delegate.event.impl.FlowableEventBuilder;
 import org.flowable.engine.impl.DeploymentQueryImpl;
 import org.flowable.engine.impl.ModelQueryImpl;
@@ -37,11 +37,14 @@ import org.flowable.engine.impl.cfg.ProcessEngineConfigurationImpl;
 import org.flowable.engine.impl.jobexecutor.TimerEventHandler;
 import org.flowable.engine.impl.jobexecutor.TimerStartEventJobHandler;
 import org.flowable.engine.impl.persistence.entity.data.DeploymentDataManager;
+import org.flowable.engine.impl.util.CommandContextUtil;
 import org.flowable.engine.impl.util.ProcessDefinitionUtil;
 import org.flowable.engine.impl.util.TimerUtil;
 import org.flowable.engine.repository.Deployment;
 import org.flowable.engine.repository.Model;
 import org.flowable.engine.repository.ProcessDefinition;
+import org.flowable.job.service.TimerJobService;
+import org.flowable.job.service.impl.persistence.entity.TimerJobEntity;
 
 /**
  * @author Tom Baeyens
@@ -65,9 +68,9 @@ public class DeploymentEntityManagerImpl extends AbstractEntityManager<Deploymen
     public void insert(DeploymentEntity deployment) {
         insert(deployment, false);
 
-        for (ResourceEntity resource : deployment.getResources().values()) {
+        for (EngineResource resource : deployment.getResources().values()) {
             resource.setDeploymentId(deployment.getId());
-            getResourceEntityManager().insert(resource);
+            getResourceEntityManager().insert((ResourceEntity) resource);
         }
     }
 
@@ -112,7 +115,7 @@ public class DeploymentEntityManagerImpl extends AbstractEntityManager<Deploymen
     }
 
     protected void deleteProcessDefinitionIdentityLinks(ProcessDefinition processDefinition) {
-        getIdentityLinkEntityManager().deleteIdentityLinksByProcDef(processDefinition.getId());
+        CommandContextUtil.getIdentityLinkService().deleteIdentityLinksByProcessDefinitionId(processDefinition.getId());
     }
 
     protected void deleteEventSubscriptions(ProcessDefinition processDefinition) {
@@ -135,22 +138,22 @@ public class DeploymentEntityManagerImpl extends AbstractEntityManager<Deploymen
     }
 
     protected void removeTimerStartJobs(ProcessDefinition processDefinition) {
-        List<TimerJobEntity> timerStartJobs = getTimerJobEntityManager()
-                .findJobsByTypeAndProcessDefinitionId(TimerStartEventJobHandler.TYPE, processDefinition.getId());
+        TimerJobService timerJobService = CommandContextUtil.getTimerJobService();
+        List<TimerJobEntity> timerStartJobs = timerJobService.findJobsByTypeAndProcessDefinitionId(TimerStartEventJobHandler.TYPE, processDefinition.getId());
         if (timerStartJobs != null && timerStartJobs.size() > 0) {
             for (TimerJobEntity timerStartJob : timerStartJobs) {
                 if (getEventDispatcher().isEnabled()) {
                     getEventDispatcher().dispatchEvent(FlowableEventBuilder.createEntityEvent(FlowableEngineEventType.JOB_CANCELED, timerStartJob, null, null, processDefinition.getId()));
                 }
 
-                getTimerJobEntityManager().delete(timerStartJob);
+                timerJobService.deleteTimerJob(timerStartJob);
             }
         }
     }
 
     protected void restorePreviousStartEventsIfNeeded(ProcessDefinition processDefinition) {
         ProcessDefinitionEntity latestProcessDefinition = findLatestProcessDefinition(processDefinition);
-        if (processDefinition.getId().equals(latestProcessDefinition.getId())) {
+        if (latestProcessDefinition != null && processDefinition.getId().equals(latestProcessDefinition.getId())) {
 
             // Try to find a previous version (it could be some versions are missing due to deletions)
             ProcessDefinition previousProcessDefinition = findNewLatestProcessDefinitionAfterRemovalOf(processDefinition);
@@ -192,16 +195,16 @@ public class DeploymentEntityManagerImpl extends AbstractEntityManager<Deploymen
                 TimerEventHandler.createConfiguration(startEvent.getId(), timerEventDefinition.getEndDate(), timerEventDefinition.getCalendarName()));
 
         if (timer != null) {
-            TimerJobEntity timerJob = getJobManager().createTimerJob((TimerEventDefinition) eventDefinition, false, null, TimerStartEventJobHandler.TYPE,
-                    TimerEventHandler.createConfiguration(startEvent.getId(), timerEventDefinition.getEndDate(), timerEventDefinition.getCalendarName()));
-
+            TimerJobEntity timerJob = TimerUtil.createTimerEntityForTimerEventDefinition(timerEventDefinition, false, null, TimerStartEventJobHandler.TYPE, 
+                            TimerEventHandler.createConfiguration(startEvent.getId(), timerEventDefinition.getEndDate(), timerEventDefinition.getCalendarName()));
+            
             timerJob.setProcessDefinitionId(previousProcessDefinition.getId());
 
             if (previousProcessDefinition.getTenantId() != null) {
                 timerJob.setTenantId(previousProcessDefinition.getTenantId());
             }
 
-            getJobManager().scheduleTimerJob(timerJob);
+            CommandContextUtil.getTimerJobService().scheduleTimerJob(timerJob);
         }
     }
 
@@ -270,19 +273,18 @@ public class DeploymentEntityManagerImpl extends AbstractEntityManager<Deploymen
             query.processDefinitionWithoutTenantId();
         }
 
-        query.processDefinitionVersionLowerThan(processDefinitionToBeRemoved.getVersion());
+        if (processDefinitionToBeRemoved.getVersion() > 0) {
+            query.processDefinitionVersionLowerThan(processDefinitionToBeRemoved.getVersion());
+        }
         query.orderByProcessDefinitionVersion().desc();
 
-        List<ProcessDefinition> processDefinitions = getProcessDefinitionEntityManager().findProcessDefinitionsByQueryCriteria(query, new Page(0, 1));
+        query.setFirstResult(0);
+        query.setMaxResults(1);
+        List<ProcessDefinition> processDefinitions = getProcessDefinitionEntityManager().findProcessDefinitionsByQueryCriteria(query);
         if (processDefinitions != null && processDefinitions.size() > 0) {
             return processDefinitions.get(0);
         }
         return null;
-    }
-
-    @Override
-    public DeploymentEntity findLatestDeploymentByName(String deploymentName) {
-        return deploymentDataManager.findLatestDeploymentByName(deploymentName);
     }
 
     @Override
@@ -291,8 +293,8 @@ public class DeploymentEntityManagerImpl extends AbstractEntityManager<Deploymen
     }
 
     @Override
-    public List<Deployment> findDeploymentsByQueryCriteria(DeploymentQueryImpl deploymentQuery, Page page) {
-        return deploymentDataManager.findDeploymentsByQueryCriteria(deploymentQuery, page);
+    public List<Deployment> findDeploymentsByQueryCriteria(DeploymentQueryImpl deploymentQuery) {
+        return deploymentDataManager.findDeploymentsByQueryCriteria(deploymentQuery);
     }
 
     @Override
@@ -301,8 +303,8 @@ public class DeploymentEntityManagerImpl extends AbstractEntityManager<Deploymen
     }
 
     @Override
-    public List<Deployment> findDeploymentsByNativeQuery(Map<String, Object> parameterMap, int firstResult, int maxResults) {
-        return deploymentDataManager.findDeploymentsByNativeQuery(parameterMap, firstResult, maxResults);
+    public List<Deployment> findDeploymentsByNativeQuery(Map<String, Object> parameterMap) {
+        return deploymentDataManager.findDeploymentsByNativeQuery(parameterMap);
     }
 
     @Override

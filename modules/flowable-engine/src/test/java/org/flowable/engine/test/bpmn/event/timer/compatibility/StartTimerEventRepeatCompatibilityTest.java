@@ -1,31 +1,43 @@
+/* Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package org.flowable.engine.test.bpmn.event.timer.compatibility;
 
 import java.util.Calendar;
 import java.util.List;
 
-import org.flowable.engine.common.api.delegate.event.FlowableEvent;
-import org.flowable.engine.common.impl.util.DefaultClockImpl;
-import org.flowable.engine.common.runtime.Clock;
-import org.flowable.engine.delegate.event.FlowableEngineEventType;
-import org.flowable.engine.runtime.Job;
+import org.flowable.common.engine.api.delegate.event.FlowableEngineEventType;
+import org.flowable.common.engine.api.delegate.event.FlowableEvent;
+import org.flowable.common.engine.impl.runtime.Clock;
+import org.flowable.common.engine.impl.util.DefaultClockImpl;
 import org.flowable.engine.runtime.ProcessInstance;
-import org.flowable.engine.task.Task;
 import org.flowable.engine.test.api.event.TestFlowableEntityEventListener;
+import org.flowable.job.api.Job;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 public class StartTimerEventRepeatCompatibilityTest extends TimerEventCompatibilityTest {
 
     private TestFlowableEntityEventListener listener;
 
-    @Override
+    @BeforeEach
     protected void setUp() throws Exception {
-        super.setUp();
         listener = new TestFlowableEntityEventListener(Job.class);
         processEngineConfiguration.getEventDispatcher().addEventListener(listener);
     }
 
-    @Override
+    @AfterEach
     protected void tearDown() throws Exception {
-        super.tearDown();
 
         if (listener != null) {
             processEngineConfiguration.getEventDispatcher().removeEventListener(listener);
@@ -35,6 +47,7 @@ public class StartTimerEventRepeatCompatibilityTest extends TimerEventCompatibil
     /**
      * Timer repetition
      */
+    @Test
     public void testCycleDateStartTimerEvent() throws Exception {
         Clock previousClock = processEngineConfiguration.getClock();
 
@@ -67,7 +80,7 @@ public class StartTimerEventRepeatCompatibilityTest extends TimerEventCompatibil
         assertEquals(0, processInstances.size());
 
         // No tasks
-        List<Task> tasks = taskService.createTaskQuery().list();
+        List<org.flowable.task.api.Task> tasks = taskService.createTaskQuery().list();
         assertEquals(0, tasks.size());
 
         // ADVANCE THE CLOCK
@@ -154,7 +167,7 @@ public class StartTimerEventRepeatCompatibilityTest extends TimerEventCompatibil
         // let's complete the userTasks where the process is hanging in order to complete the processes.
         for (ProcessInstance processInstance : processInstances) {
             tasks = taskService.createTaskQuery().processInstanceId(processInstance.getProcessInstanceId()).list();
-            Task task = tasks.get(0);
+            org.flowable.task.api.Task task = tasks.get(0);
             assertEquals("Task A", task.getName());
             assertEquals(1, tasks.size());
             taskService.complete(task.getId());

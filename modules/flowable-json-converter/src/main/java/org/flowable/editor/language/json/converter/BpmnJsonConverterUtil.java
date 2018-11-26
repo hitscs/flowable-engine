@@ -17,7 +17,6 @@ import java.util.Collection;
 import java.util.List;
 
 import org.apache.commons.lang3.StringUtils;
-import org.flowable.bpmn.model.FlowableListener;
 import org.flowable.bpmn.model.BaseElement;
 import org.flowable.bpmn.model.BooleanDataObject;
 import org.flowable.bpmn.model.BpmnModel;
@@ -26,6 +25,7 @@ import org.flowable.bpmn.model.DoubleDataObject;
 import org.flowable.bpmn.model.EventListener;
 import org.flowable.bpmn.model.FieldExtension;
 import org.flowable.bpmn.model.FlowElement;
+import org.flowable.bpmn.model.FlowableListener;
 import org.flowable.bpmn.model.ImplementationType;
 import org.flowable.bpmn.model.IntegerDataObject;
 import org.flowable.bpmn.model.ItemDefinition;
@@ -56,7 +56,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
  */
 public class BpmnJsonConverterUtil implements EditorJsonConstants, StencilConstants {
 
-    private static final Logger logger = LoggerFactory.getLogger(BpmnJsonConverterUtil.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(BpmnJsonConverterUtil.class);
 
     private static DateTimeFormatter dateTimeFormatter = ISODateTimeFormat.dateTimeParser();
     private static ObjectMapper objectMapper = new ObjectMapper();
@@ -301,8 +301,10 @@ public class BpmnJsonConverterUtil implements EditorJsonConstants, StencilConsta
     }
 
     protected static void parseListeners(JsonNode listenersNode, BaseElement element, boolean isTaskListener) {
-        if (listenersNode == null)
+        if (listenersNode == null) {
             return;
+        }
+
         listenersNode = validateIfNodeIsTextual(listenersNode);
         for (JsonNode listenerNode : listenersNode) {
             listenerNode = validateIfNodeIsTextual(listenerNode);
@@ -504,14 +506,14 @@ public class BpmnJsonConverterUtil implements EditorJsonConstants, StencilConsta
     }
 
     public static List<ValuedDataObject> convertJsonToDataProperties(JsonNode objectNode, BaseElement element) {
-        List<ValuedDataObject> dataObjects = new ArrayList<ValuedDataObject>();
+        List<ValuedDataObject> dataObjects = new ArrayList<>();
 
         if (objectNode != null) {
             if (objectNode.isValueNode() && StringUtils.isNotEmpty(objectNode.asText())) {
                 try {
                     objectNode = objectMapper.readTree(objectNode.asText());
                 } catch (Exception e) {
-                    logger.info("Data properties node cannot be read", e);
+                    LOGGER.info("Data properties node cannot be read", e);
                 }
             }
 
@@ -538,25 +540,31 @@ public class BpmnJsonConverterUtil implements EditorJsonConstants, StencilConsta
                         } else if (dataType.equals("datetime")) {
                             dataObject = new DateDataObject();
                         } else {
-                            logger.error("Error converting {}", dataIdNode.asText());
+                            LOGGER.error("Error converting {}", dataIdNode.asText());
                         }
 
                         if (null != dataObject) {
-                            dataObject.setId(dataIdNode.asText());
-                            dataObject.setName(dataNode.get(PROPERTY_DATA_NAME).asText());
+                        	dataObject.setId(dataIdNode.asText());
+                        	dataObject.setName(dataNode.get(PROPERTY_DATA_NAME).asText());
 
-                            itemSubjectRef.setStructureRef("xsd:" + dataType);
-                            dataObject.setItemSubjectRef(itemSubjectRef);
+                        	itemSubjectRef.setStructureRef("xsd:" + dataType);
+                        	dataObject.setItemSubjectRef(itemSubjectRef);
 
-                            if (dataObject instanceof DateDataObject) {
-                                try {
-                                    dataObject.setValue(dateTimeFormatter.parseDateTime(dataNode.get(PROPERTY_DATA_VALUE).asText()).toDate());
-                                } catch (Exception e) {
-                                    logger.error("Error converting {}", dataObject.getName(), e);
-                                }
-                            } else {
-                                dataObject.setValue(dataNode.get(PROPERTY_DATA_VALUE).asText());
-                            }
+                        	JsonNode valueNode = dataNode.get(PROPERTY_DATA_VALUE);
+                        	if (valueNode != null) {
+                				String dateValue = valueNode.asText();
+                        		if (dataObject instanceof DateDataObject) {
+                        			try {
+                        				if (!StringUtils.isEmpty(dateValue.trim())) {
+                        					dataObject.setValue(dateTimeFormatter.parseDateTime(dateValue).toDate());
+                        				}
+                        			} catch (Exception e) {
+                        				LOGGER.error("Error converting {}", dataObject.getName(), e);
+                        			}
+                        		} else {
+                        			dataObject.setValue(dateValue);
+                        		}
+                        	}
 
                             dataObjects.add(dataObject);
                         }
@@ -598,7 +606,7 @@ public class BpmnJsonConverterUtil implements EditorJsonConstants, StencilConsta
         }
 
         dataPropertiesNode.set(EDITOR_PROPERTIES_GENERAL_ITEMS, itemsNode);
-        propertiesNode.set("dataproperties", dataPropertiesNode);
+        propertiesNode.set(PROPERTY_DATA_PROPERTIES, dataPropertiesNode);
     }
 
     public static JsonNode validateIfNodeIsTextual(JsonNode node) {
@@ -606,7 +614,7 @@ public class BpmnJsonConverterUtil implements EditorJsonConstants, StencilConsta
             try {
                 node = validateIfNodeIsTextual(objectMapper.readTree(node.asText()));
             } catch (Exception e) {
-                logger.error("Error converting textual node", e);
+                LOGGER.error("Error converting textual node", e);
             }
         }
         return node;

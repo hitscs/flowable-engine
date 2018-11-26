@@ -32,8 +32,8 @@ import org.flowable.validation.ValidationError;
 import org.flowable.validation.validator.Problems;
 import org.flowable.validation.validator.ValidatorSetNames;
 import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 /**
  * @author jbarrez
@@ -42,7 +42,7 @@ public class DefaultProcessValidatorTest {
 
     protected ProcessValidator processValidator;
 
-    @Before
+    @BeforeEach
     public void setupProcessValidator() {
         ProcessValidatorFactory processValidatorFactory = new ProcessValidatorFactory();
         this.processValidator = processValidatorFactory.createDefaultProcessValidator();
@@ -59,11 +59,9 @@ public class DefaultProcessValidatorTest {
         Assert.assertNotNull(bpmnModel);
 
         List<ValidationError> allErrors = processValidator.validate(bpmnModel);
-        Assert.assertEquals(65, allErrors.size());
+        Assert.assertEquals(70, allErrors.size());
 
-        String setName = ValidatorSetNames.ACTIVITI_EXECUTABLE_PROCESS; // shortening
-                                                                        // it a
-                                                                        // bit
+        String setName = ValidatorSetNames.FLOWABLE_EXECUTABLE_PROCESS; // shortening it a bit
 
         // isExecutable should be true
         List<ValidationError> problems = findErrors(allErrors, setName, Problems.ALL_PROCESS_DEFINITIONS_NOT_EXECUTABLE, 1);
@@ -126,6 +124,8 @@ public class DefaultProcessValidatorTest {
         assertCommonProblemFieldForActivity(problems.get(0));
         problems = findErrors(allErrors, setName, Problems.SERVICE_TASK_WEBSERVICE_INVALID_OPERATION_REF, 1);
         assertCommonProblemFieldForActivity(problems.get(0));
+        problems = findErrors(allErrors, setName, Problems.SERVICE_TASK_USE_LOCAL_SCOPE_FOR_RESULT_VAR_WITHOUT_RESULT_VARIABLE_NAME, 1);
+        assertCommonProblemFieldForActivity(problems.get(0));
 
         // Send task
         problems = findErrors(allErrors, setName, Problems.SEND_TASK_INVALID_IMPLEMENTATION, 1);
@@ -140,6 +140,14 @@ public class DefaultProcessValidatorTest {
         assertCommonProblemFieldForActivity(problems.get(0));
         assertCommonProblemFieldForActivity(problems.get(1));
         problems = findErrors(allErrors, setName, Problems.MAIL_TASK_NO_CONTENT, 4);
+        assertCommonProblemFieldForActivity(problems.get(0));
+        assertCommonProblemFieldForActivity(problems.get(1));
+
+        // Http task
+        problems = findErrors(allErrors, setName, Problems.HTTP_TASK_NO_REQUEST_METHOD, 2);
+        assertCommonProblemFieldForActivity(problems.get(0));
+        assertCommonProblemFieldForActivity(problems.get(1));
+        problems = findErrors(allErrors, setName, Problems.HTTP_TASK_NO_REQUEST_URL, 2);
         assertCommonProblemFieldForActivity(problems.get(0));
         assertCommonProblemFieldForActivity(problems.get(1));
 
@@ -351,7 +359,7 @@ public class DefaultProcessValidatorTest {
     }
 
     protected List<ValidationError> findErrors(List<ValidationError> errors, String validatorSetName, String problemName) {
-        List<ValidationError> results = new ArrayList<ValidationError>();
+        List<ValidationError> results = new ArrayList<>();
         for (ValidationError error : errors) {
             if (error.getValidatorSetName().equals(validatorSetName) && error.getProblem().equals(problemName)) {
                 results.add(error);

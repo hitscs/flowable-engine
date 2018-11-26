@@ -12,23 +12,29 @@
  */
 package org.flowable.engine.test.api.v6;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.entry;
+
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
-import org.flowable.engine.common.api.delegate.event.FlowableEvent;
-import org.flowable.engine.common.api.delegate.event.FlowableEventListener;
+import org.flowable.common.engine.api.delegate.event.FlowableEvent;
+import org.flowable.common.engine.impl.history.HistoryLevel;
+import org.flowable.engine.delegate.event.AbstractFlowableEngineEventListener;
 import org.flowable.engine.delegate.event.FlowableActivityCancelledEvent;
 import org.flowable.engine.delegate.event.FlowableActivityEvent;
 import org.flowable.engine.history.HistoricActivityInstance;
-import org.flowable.engine.impl.history.HistoryLevel;
+import org.flowable.engine.impl.test.HistoryTestHelper;
 import org.flowable.engine.impl.test.PluggableFlowableTestCase;
 import org.flowable.engine.runtime.Execution;
 import org.flowable.engine.runtime.ProcessInstance;
-import org.flowable.engine.task.Task;
 import org.flowable.engine.test.Deployment;
+import org.junit.jupiter.api.Test;
 
 public class Flowable6ExecutionTest extends PluggableFlowableTestCase {
 
+    @Test
     @Deployment
     public void testOneTaskProcess() {
         ProcessInstance processInstance = runtimeService.startProcessInstanceByKey("oneTaskProcess");
@@ -56,18 +62,18 @@ public class Flowable6ExecutionTest extends PluggableFlowableTestCase {
         assertNotNull(rootProcessInstance);
         assertNotNull(childExecution);
 
-        Task task = taskService.createTaskQuery().singleResult();
+        org.flowable.task.api.Task task = taskService.createTaskQuery().singleResult();
         assertEquals(childExecution.getId(), task.getExecutionId());
 
         taskService.complete(task.getId());
 
-        if (processEngineConfiguration.getHistoryLevel().isAtLeast(HistoryLevel.ACTIVITY)) {
+        if (HistoryTestHelper.isHistoryLevelAtLeast(HistoryLevel.ACTIVITY, processEngineConfiguration)) {
             List<HistoricActivityInstance> historicActivities = historyService.createHistoricActivityInstanceQuery()
                     .processInstanceId(processInstance.getId())
                     .list();
             assertEquals(3, historicActivities.size());
 
-            List<String> activityIds = new ArrayList<String>();
+            List<String> activityIds = new ArrayList<>();
             activityIds.add("theStart");
             activityIds.add("theTask");
             activityIds.add("theEnd");
@@ -81,6 +87,7 @@ public class Flowable6ExecutionTest extends PluggableFlowableTestCase {
         }
     }
 
+    @Test
     @Deployment
     public void testOneNestedTaskProcess() {
         ProcessInstance processInstance = runtimeService.startProcessInstanceByKey("oneNestedTaskProcess");
@@ -108,7 +115,7 @@ public class Flowable6ExecutionTest extends PluggableFlowableTestCase {
         assertNotNull(rootProcessInstance);
         assertNotNull(childExecution);
 
-        Task task = taskService.createTaskQuery().processInstanceId(processInstance.getId()).singleResult();
+        org.flowable.task.api.Task task = taskService.createTaskQuery().processInstanceId(processInstance.getId()).singleResult();
         assertEquals(childExecution.getId(), task.getExecutionId());
 
         taskService.complete(task.getId());
@@ -142,13 +149,13 @@ public class Flowable6ExecutionTest extends PluggableFlowableTestCase {
 
         assertProcessEnded(processInstance.getId());
 
-        if (processEngineConfiguration.getHistoryLevel().isAtLeast(HistoryLevel.ACTIVITY)) {
+        if (HistoryTestHelper.isHistoryLevelAtLeast(HistoryLevel.ACTIVITY, processEngineConfiguration)) {
             List<HistoricActivityInstance> historicActivities = historyService.createHistoricActivityInstanceQuery()
                     .processInstanceId(processInstance.getId())
                     .list();
             assertEquals(8, historicActivities.size());
 
-            List<String> activityIds = new ArrayList<String>();
+            List<String> activityIds = new ArrayList<>();
             activityIds.add("theStart");
             activityIds.add("theTask1");
             activityIds.add("subProcess");
@@ -187,6 +194,7 @@ public class Flowable6ExecutionTest extends PluggableFlowableTestCase {
         }
     }
 
+    @Test
     @Deployment
     public void testSubProcessWithTimer() {
         ProcessInstance processInstance = runtimeService.startProcessInstanceByKey("subProcessWithTimer");
@@ -214,7 +222,7 @@ public class Flowable6ExecutionTest extends PluggableFlowableTestCase {
         assertNotNull(rootProcessInstance);
         assertNotNull(childExecution);
 
-        Task task = taskService.createTaskQuery().processInstanceId(processInstance.getId()).singleResult();
+        org.flowable.task.api.Task task = taskService.createTaskQuery().processInstanceId(processInstance.getId()).singleResult();
         assertEquals(childExecution.getId(), task.getExecutionId());
 
         taskService.complete(task.getId());
@@ -248,13 +256,13 @@ public class Flowable6ExecutionTest extends PluggableFlowableTestCase {
 
         assertProcessEnded(processInstance.getId());
 
-        if (processEngineConfiguration.getHistoryLevel().isAtLeast(HistoryLevel.ACTIVITY)) {
+        if (HistoryTestHelper.isHistoryLevelAtLeast(HistoryLevel.ACTIVITY, processEngineConfiguration)) {
             List<HistoricActivityInstance> historicActivities = historyService.createHistoricActivityInstanceQuery()
                     .processInstanceId(processInstance.getId())
                     .list();
             assertEquals(8, historicActivities.size());
 
-            List<String> activityIds = new ArrayList<String>();
+            List<String> activityIds = new ArrayList<>();
             activityIds.add("theStart");
             activityIds.add("theTask1");
             activityIds.add("subProcess");
@@ -293,6 +301,7 @@ public class Flowable6ExecutionTest extends PluggableFlowableTestCase {
         }
     }
 
+    @Test
     @Deployment
     public void testSubProcessEvents() {
         SubProcessEventListener listener = new SubProcessEventListener();
@@ -300,7 +309,7 @@ public class Flowable6ExecutionTest extends PluggableFlowableTestCase {
 
         ProcessInstance processInstance = runtimeService.startProcessInstanceByKey("subProcessEvents");
 
-        Task task = taskService.createTaskQuery().processInstanceId(processInstance.getId()).singleResult();
+        org.flowable.task.api.Task task = taskService.createTaskQuery().processInstanceId(processInstance.getId()).singleResult();
         taskService.complete(task.getId());
 
         Execution subProcessExecution = runtimeService.createExecutionQuery().processInstanceId(processInstance.getId()).activityId("subProcess").singleResult();
@@ -328,12 +337,26 @@ public class Flowable6ExecutionTest extends PluggableFlowableTestCase {
         processEngineConfiguration.getEventDispatcher().removeEventListener(listener);
     }
 
-    public class SubProcessEventListener implements FlowableEventListener {
+    @Test
+    @Deployment
+    void testCurrentActivityNamePresentDuringExecution() {
+
+        ProcessInstance processInstance = runtimeService.startProcessInstanceByKey("currentActivityNameProcess");
+
+        Map<String, Object> processVariables = runtimeService.getVariables(processInstance.getId());
+        assertThat(processVariables)
+            .contains(
+                entry("serviceTaskActivityName", "The famous task"),
+                entry("scriptTaskActivityName", "Script Task name")
+            );
+    }
+
+    public class SubProcessEventListener extends AbstractFlowableEngineEventListener {
 
         private List<FlowableEvent> eventsReceived;
 
         public SubProcessEventListener() {
-            eventsReceived = new ArrayList<FlowableEvent>();
+            eventsReceived = new ArrayList<>();
         }
 
         public List<FlowableEvent> getEventsReceived() {
@@ -345,23 +368,24 @@ public class Flowable6ExecutionTest extends PluggableFlowableTestCase {
         }
 
         @Override
-        public void onEvent(FlowableEvent activitiEvent) {
-            if (activitiEvent instanceof FlowableActivityEvent) {
-                FlowableActivityEvent event = (FlowableActivityEvent) activitiEvent;
-                if ("subProcess".equals(event.getActivityType())) {
-                    eventsReceived.add(event);
-                }
-            } else if (activitiEvent instanceof FlowableActivityCancelledEvent) {
-                FlowableActivityCancelledEvent event = (FlowableActivityCancelledEvent) activitiEvent;
-                if ("subProcess".equals(event.getActivityType())) {
-                    eventsReceived.add(event);
-                }
+        protected void activityStarted(FlowableActivityEvent event) {
+            if ("subProcess".equals(event.getActivityType())) {
+                eventsReceived.add(event);
             }
         }
 
         @Override
-        public boolean isFailOnException() {
-            return true;
+        protected void activityCancelled(FlowableActivityCancelledEvent event) {
+            if ("subProcess".equals(event.getActivityType())) {
+                eventsReceived.add(event);
+            }
+        }
+
+        @Override
+        protected void activityCompleted(FlowableActivityEvent event) {
+            if ("subProcess".equals(event.getActivityType())) {
+                eventsReceived.add(event);
+            }
         }
     }
 }

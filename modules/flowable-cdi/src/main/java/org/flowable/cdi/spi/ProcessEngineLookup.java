@@ -14,6 +14,7 @@ package org.flowable.cdi.spi;
 
 import java.util.ServiceLoader;
 
+import org.flowable.cdi.impl.FlowableExtension;
 import org.flowable.engine.ProcessEngine;
 
 /**
@@ -38,7 +39,7 @@ import org.flowable.engine.ProcessEngine;
 public interface ProcessEngineLookup {
 
     /**
-     * determines the ordering in which implementations are invoked. Implementations with a high ordering are invoked first.
+     * Determines the ordering in which implementations are invoked. Implementations with a high ordering are invoked first.
      */
     int getPrecedence();
 
@@ -51,7 +52,7 @@ public interface ProcessEngineLookup {
     ProcessEngine getProcessEngine();
 
     /**
-     * * This method will only be called once by the {@link FlowableExtension}, at shutdown
+     * This method will only be called once by the {@link FlowableExtension}, at shutdown
      */
     void ungetProcessEngine();
 

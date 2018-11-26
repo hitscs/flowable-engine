@@ -49,6 +49,7 @@ public class ValuedDataObjectConverterTest extends AbstractConverterTest {
         validateModel(bpmnModel);
     }
 
+    @Override
     protected String getResource() {
         return "test.valueddataobjectmodel.json";
     }
@@ -61,7 +62,7 @@ public class ValuedDataObjectConverterTest extends AbstractConverterTest {
 
         // verify main process data objects
         List<ValuedDataObject> dataObjects = model.getMainProcess().getDataObjects();
-        assertEquals(6, dataObjects.size());
+        assertEquals(12, dataObjects.size());
         for (ValuedDataObject dObj : dataObjects) {
             if ("dObj1".equals(dObj.getId())) {
                 assertEquals(StringDataObject.class, dObj.getClass());
@@ -74,7 +75,7 @@ public class ValuedDataObjectConverterTest extends AbstractConverterTest {
                 assertEquals("BooleanTest", dObj.getName());
                 assertEquals("xsd:boolean", dObj.getItemSubjectRef().getStructureRef());
                 assertTrue(dObj.getValue() instanceof Boolean);
-                assertEquals(new Boolean(true), dObj.getValue());
+                assertEquals(Boolean.TRUE, dObj.getValue());
             } else if ("dObj3".equals(dObj.getId())) {
                 assertEquals(DateDataObject.class, dObj.getClass());
                 assertEquals("DateTest", dObj.getName());
@@ -92,19 +93,19 @@ public class ValuedDataObjectConverterTest extends AbstractConverterTest {
                 assertEquals("DoubleTest", dObj.getName());
                 assertEquals("xsd:double", dObj.getItemSubjectRef().getStructureRef());
                 assertTrue(dObj.getValue() instanceof Double);
-                assertEquals(new Double(123456789), dObj.getValue());
+                assertEquals(123456789d, dObj.getValue());
             } else if ("dObj5".equals(dObj.getId())) {
                 assertEquals(IntegerDataObject.class, dObj.getClass());
                 assertEquals("IntegerTest", dObj.getName());
                 assertEquals("xsd:int", dObj.getItemSubjectRef().getStructureRef());
                 assertTrue(dObj.getValue() instanceof Integer);
-                assertEquals(new Integer(123), dObj.getValue());
+                assertEquals(123, dObj.getValue());
             } else if ("dObj6".equals(dObj.getId())) {
                 assertEquals(LongDataObject.class, dObj.getClass());
                 assertEquals("LongTest", dObj.getName());
                 assertEquals("xsd:long", dObj.getItemSubjectRef().getStructureRef());
                 assertTrue(dObj.getValue() instanceof Long);
-                assertEquals(new Long(-123456), dObj.getValue());
+                assertEquals((long) -123456, dObj.getValue());
             }
         }
 
@@ -113,11 +114,11 @@ public class ValuedDataObjectConverterTest extends AbstractConverterTest {
         assertTrue(flowElement instanceof SubProcess);
         assertEquals("subprocess1", flowElement.getId());
         SubProcess subProcess = (SubProcess) flowElement;
-        assertEquals(11, subProcess.getFlowElements().size());
+        assertEquals(17, subProcess.getFlowElements().size());
 
         // verify subprocess data objects
         dataObjects = ((SubProcess) flowElement).getDataObjects();
-        assertEquals(6, dataObjects.size());
+        assertEquals(12, dataObjects.size());
         for (ValuedDataObject dObj : dataObjects) {
             if ("dObj1".equals(dObj.getId())) {
                 assertEquals(StringDataObject.class, dObj.getClass());
@@ -130,7 +131,7 @@ public class ValuedDataObjectConverterTest extends AbstractConverterTest {
                 assertEquals("SubBooleanTest", dObj.getName());
                 assertEquals("xsd:boolean", dObj.getItemSubjectRef().getStructureRef());
                 assertTrue(dObj.getValue() instanceof Boolean);
-                assertEquals(new Boolean(false), dObj.getValue());
+                assertEquals(Boolean.FALSE, dObj.getValue());
             } else if ("dObj3".equals(dObj.getId())) {
                 assertEquals(DateDataObject.class, dObj.getClass());
                 assertEquals("SubDateTest", dObj.getName());
@@ -146,19 +147,19 @@ public class ValuedDataObjectConverterTest extends AbstractConverterTest {
                 assertEquals("SubDoubleTest", dObj.getName());
                 assertEquals("xsd:double", dObj.getItemSubjectRef().getStructureRef());
                 assertTrue(dObj.getValue() instanceof Double);
-                assertEquals(new Double(678912345), dObj.getValue());
+                assertEquals(678912345d, dObj.getValue());
             } else if ("dObj5".equals(dObj.getId())) {
                 assertEquals(IntegerDataObject.class, dObj.getClass());
                 assertEquals("SubIntegerTest", dObj.getName());
                 assertEquals("xsd:int", dObj.getItemSubjectRef().getStructureRef());
                 assertTrue(dObj.getValue() instanceof Integer);
-                assertEquals(new Integer(45), dObj.getValue());
+                assertEquals(45, dObj.getValue());
             } else if ("dObj6".equals(dObj.getId())) {
                 assertEquals(LongDataObject.class, dObj.getClass());
                 assertEquals("SubLongTest", dObj.getName());
                 assertEquals("xsd:long", dObj.getItemSubjectRef().getStructureRef());
                 assertTrue(dObj.getValue() instanceof Long);
-                assertEquals(new Long(456123), dObj.getValue());
+                assertEquals(456123L, dObj.getValue());
                 assertEquals(1, dObj.getExtensionElements().size());
             }
         }

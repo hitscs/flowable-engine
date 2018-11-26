@@ -14,8 +14,6 @@ package org.flowable.content.engine;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.PrintWriter;
-import java.io.StringWriter;
 import java.lang.reflect.Method;
 import java.net.MalformedURLException;
 import java.net.URL;
@@ -29,33 +27,34 @@ import java.util.Map;
 import java.util.Set;
 
 import org.apache.commons.io.IOUtils;
-import org.flowable.content.engine.impl.util.ReflectUtil;
-import org.flowable.engine.common.EngineInfo;
-import org.flowable.engine.common.api.FlowableException;
+import org.apache.commons.lang3.exception.ExceptionUtils;
+import org.flowable.common.engine.api.FlowableException;
+import org.flowable.common.engine.impl.EngineInfo;
+import org.flowable.common.engine.impl.util.ReflectUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public abstract class ContentEngines {
 
-    private static Logger log = LoggerFactory.getLogger(ContentEngines.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(ContentEngines.class);
 
     public static final String NAME_DEFAULT = "default";
 
     protected static boolean isInitialized;
-    protected static Map<String, ContentEngine> contentEngines = new HashMap<String, ContentEngine>();
-    protected static Map<String, EngineInfo> contentEngineInfosByName = new HashMap<String, EngineInfo>();
-    protected static Map<String, EngineInfo> contentEngineInfosByResourceUrl = new HashMap<String, EngineInfo>();
-    protected static List<EngineInfo> contentEngineInfos = new ArrayList<EngineInfo>();
+    protected static Map<String, ContentEngine> contentEngines = new HashMap<>();
+    protected static Map<String, EngineInfo> contentEngineInfosByName = new HashMap<>();
+    protected static Map<String, EngineInfo> contentEngineInfosByResourceUrl = new HashMap<>();
+    protected static List<EngineInfo> contentEngineInfos = new ArrayList<>();
 
     /**
-     * Initializes all dmn engines that can be found on the classpath for resources <code>flowable.content.cfg.xml</code> and for resources <code>flowable-dmn-context.xml</code> (Spring style
+     * Initializes all content engines that can be found on the classpath for resources <code>flowable.content.cfg.xml</code> and for resources <code>flowable-context.xml</code> (Spring style
      * configuration).
      */
     public static synchronized void init() {
         if (!isInitialized()) {
             if (contentEngines == null) {
                 // Create new map to store content engines if current map is null
-                contentEngines = new HashMap<String, ContentEngine>();
+                contentEngines = new HashMap<>();
             }
             ClassLoader classLoader = ContentEngines.class.getClassLoader();
             Enumeration<URL> resources = null;
@@ -67,13 +66,13 @@ public abstract class ContentEngines {
 
             // Remove duplicated configuration URL's using set. Some
             // classloaders may return identical URL's twice, causing duplicate startups
-            Set<URL> configUrls = new HashSet<URL>();
+            Set<URL> configUrls = new HashSet<>();
             while (resources.hasMoreElements()) {
                 configUrls.add(resources.nextElement());
             }
             for (Iterator<URL> iterator = configUrls.iterator(); iterator.hasNext();) {
                 URL resource = iterator.next();
-                log.info("Initializing content engine using configuration '{}'", resource.toString());
+                LOGGER.info("Initializing content engine using configuration '{}'", resource.toString());
                 initContentEngineFromResource(resource);
             }
 
@@ -85,13 +84,13 @@ public abstract class ContentEngines {
 
             while (resources.hasMoreElements()) {
                 URL resource = resources.nextElement();
-                log.info("Initializing content engine using Spring configuration '{}'", resource.toString());
+                LOGGER.info("Initializing content engine using Spring configuration '{}'", resource.toString());
                 initContentEngineFromSpringResource(resource);
             }
 
             setInitialized(true);
         } else {
-            log.info("Content engines already initialized");
+            LOGGER.info("Content engines already initialized");
         }
     }
 
@@ -112,7 +111,7 @@ public abstract class ContentEngines {
     }
 
     /**
-     * Registers the given content engine. No {@link ContentEngineInfo} will be available for this content engine. An engine that is registered will be closed when the {@link ContentEngines#destroy()}
+     * Registers the given content engine. No {@link ContentEngine} will be available for this content engine. An engine that is registered will be closed when the {@link ContentEngines#destroy()}
      * is called.
      */
     public static void registerContentEngine(ContentEngine contentEngine) {
@@ -120,17 +119,17 @@ public abstract class ContentEngines {
     }
 
     /**
-     * Unregisters the given dmn engine.
+     * Unregisters the given content engine.
      */
-    public static void unregister(ContentEngine formEngine) {
-        contentEngines.remove(formEngine.getName());
+    public static void unregister(ContentEngine contentEngine) {
+        contentEngines.remove(contentEngine.getName());
     }
 
     private static EngineInfo initContentEngineFromResource(URL resourceUrl) {
         EngineInfo contentEngineInfo = contentEngineInfosByResourceUrl.get(resourceUrl.toString());
-        // if there is an existing dmn engine info
+        // if there is an existing content engine info
         if (contentEngineInfo != null) {
-            // remove that dmn engine from the member fields
+            // remove that content engine from the member fields
             contentEngineInfos.remove(contentEngineInfo);
             if (contentEngineInfo.getException() == null) {
                 String contentEngineName = contentEngineInfo.getName();
@@ -142,41 +141,30 @@ public abstract class ContentEngines {
 
         String resourceUrlString = resourceUrl.toString();
         try {
-            log.info("initializing content engine for resource {}", resourceUrl);
-            ContentEngine contentEngine = buildFormEngine(resourceUrl);
+            LOGGER.info("initializing content engine for resource {}", resourceUrl);
+            ContentEngine contentEngine = buildContentEngine(resourceUrl);
             String contentEngineName = contentEngine.getName();
-            log.info("initialised content engine {}", contentEngineName);
+            LOGGER.info("initialised content engine {}", contentEngineName);
             contentEngineInfo = new EngineInfo(contentEngineName, resourceUrlString, null);
             contentEngines.put(contentEngineName, contentEngine);
             contentEngineInfosByName.put(contentEngineName, contentEngineInfo);
 
         } catch (Throwable e) {
-            log.error("Exception while initializing content engine: {}", e.getMessage(), e);
-            contentEngineInfo = new EngineInfo(null, resourceUrlString, getExceptionString(e));
+            LOGGER.error("Exception while initializing content engine: {}", e.getMessage(), e);
+            contentEngineInfo = new EngineInfo(null, resourceUrlString, ExceptionUtils.getStackTrace(e));
         }
         contentEngineInfosByResourceUrl.put(resourceUrlString, contentEngineInfo);
         contentEngineInfos.add(contentEngineInfo);
         return contentEngineInfo;
     }
 
-    private static String getExceptionString(Throwable e) {
-        StringWriter sw = new StringWriter();
-        PrintWriter pw = new PrintWriter(sw);
-        e.printStackTrace(pw);
-        return sw.toString();
-    }
-
-    protected static ContentEngine buildFormEngine(URL resource) {
-        InputStream inputStream = null;
-        try {
-            inputStream = resource.openStream();
+    protected static ContentEngine buildContentEngine(URL resource) {
+        try (InputStream inputStream = resource.openStream()) {
             ContentEngineConfiguration contentEngineConfiguration = ContentEngineConfiguration.createContentEngineConfigurationFromInputStream(inputStream);
             return contentEngineConfiguration.buildContentEngine();
 
         } catch (IOException e) {
             throw new FlowableException("couldn't open resource stream: " + e.getMessage(), e);
-        } finally {
-            IOUtils.closeQuietly(inputStream);
         }
     }
 
@@ -186,8 +174,8 @@ public abstract class ContentEngines {
     }
 
     /**
-     * Get initialization results. Only info will we available for form engines which were added in the {@link ContentEngines#init()}. No {@link FormEngineInfo} is available for engines which were
-     * registered programmatically.
+     * Get initialization results. Only info will we available for content engines which were added in the {@link ContentEngines#init()}. No
+     * {@link EngineInfo} is available for engines which were registered programmatically.
      */
     public static EngineInfo getContentEngineInfo(String contentEngineName) {
         return contentEngineInfosByName.get(contentEngineName);
@@ -198,7 +186,7 @@ public abstract class ContentEngines {
     }
 
     /**
-     * obtain a content engine by name.
+     * Obtain a content engine by name.
      * 
      * @param contentEngineName
      *            is the name of the content engine or null for the default content engine.
@@ -211,10 +199,10 @@ public abstract class ContentEngines {
     }
 
     /**
-     * retries to initialize a content engine that previously failed.
+     * Retries to initialize a content engine that previously failed.
      */
     public static EngineInfo retry(String resourceUrl) {
-        log.debug("retying initializing of resource {}", resourceUrl);
+        LOGGER.debug("retying initializing of resource {}", resourceUrl);
         try {
             return initContentEngineFromResource(new URL(resourceUrl));
         } catch (MalformedURLException e) {
@@ -223,26 +211,26 @@ public abstract class ContentEngines {
     }
 
     /**
-     * provides access to content engine to application clients in a managed server environment.
+     * Provides access to content engine to application clients in a managed server environment.
      */
     public static Map<String, ContentEngine> getContentEngines() {
         return contentEngines;
     }
 
     /**
-     * closes all dmn engines. This method should be called when the server shuts down.
+     * Closes all content engines. This method should be called when the server shuts down.
      */
     public static synchronized void destroy() {
         if (isInitialized()) {
-            Map<String, ContentEngine> engines = new HashMap<String, ContentEngine>(contentEngines);
-            contentEngines = new HashMap<String, ContentEngine>();
+            Map<String, ContentEngine> engines = new HashMap<>(contentEngines);
+            contentEngines = new HashMap<>();
 
             for (String contentEngineName : engines.keySet()) {
                 ContentEngine contentEngine = engines.get(contentEngineName);
                 try {
                     contentEngine.close();
                 } catch (Exception e) {
-                    log.error("exception while closing {}", (contentEngineName == null ? "the default content engine" : "content engine " + contentEngineName), e);
+                    LOGGER.error("exception while closing {}", (contentEngineName == null ? "the default content engine" : "content engine " + contentEngineName), e);
                 }
             }
 

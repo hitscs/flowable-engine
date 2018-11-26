@@ -38,8 +38,8 @@ import java.util.Map;
 import java.util.Set;
 
 import org.activiti.engine.impl.test.PluggableFlowableTestCase;
-import org.flowable.engine.common.api.FlowableException;
-import org.flowable.engine.common.api.FlowableIllegalArgumentException;
+import org.flowable.common.engine.api.FlowableException;
+import org.flowable.common.engine.api.FlowableIllegalArgumentException;
 import org.flowable.engine.impl.persistence.entity.ExecutionEntity;
 import org.flowable.engine.repository.DeploymentProperties;
 import org.flowable.engine.runtime.Execution;
@@ -55,12 +55,12 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
  */
 public class ExecutionQueryTest extends PluggableFlowableTestCase {
 
-    private static String CONCURRENT_PROCESS_KEY = "concurrent";
-    private static String SEQUENTIAL_PROCESS_KEY = "oneTaskProcess";
-    private static String CONCURRENT_PROCESS_NAME = "concurrentName";
-    private static String SEQUENTIAL_PROCESS_NAME = "oneTaskProcessName";
-    private static String CONCURRENT_PROCESS_CATEGORY = "org.activiti.enginge.test.api.runtime.concurrent.Category";
-    private static String SEQUENTIAL_PROCESS_CATEGORY = "org.activiti.enginge.test.api.runtime.Category";
+    private static final String CONCURRENT_PROCESS_KEY = "concurrent";
+    private static final String SEQUENTIAL_PROCESS_KEY = "oneTaskProcess";
+    private static final String CONCURRENT_PROCESS_NAME = "concurrentName";
+    private static final String SEQUENTIAL_PROCESS_NAME = "oneTaskProcessName";
+    private static final String CONCURRENT_PROCESS_CATEGORY = "org.activiti.engine.test.api.runtime.concurrent.Category";
+    private static final String SEQUENTIAL_PROCESS_CATEGORY = "org.activiti.engine.test.api.runtime.Category";
 
     private List<String> concurrentProcessInstanceIds;
     private List<String> sequentialProcessInstanceIds;

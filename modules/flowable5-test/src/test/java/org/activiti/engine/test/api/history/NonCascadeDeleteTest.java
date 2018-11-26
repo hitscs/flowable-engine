@@ -1,13 +1,12 @@
 package org.activiti.engine.test.api.history;
 
 import org.activiti.engine.impl.test.PluggableFlowableTestCase;
+import org.flowable.common.engine.impl.history.HistoryLevel;
 import org.flowable.engine.history.HistoricProcessInstance;
-import org.flowable.engine.impl.history.HistoryLevel;
-import org.flowable.engine.task.Task;
 
 public class NonCascadeDeleteTest extends PluggableFlowableTestCase {
 
-    private static String PROCESS_DEFINITION_KEY = "oneTaskProcess";
+    private static final String PROCESS_DEFINITION_KEY = "oneTaskProcess";
 
     private String deploymentId;
 
@@ -27,7 +26,7 @@ public class NonCascadeDeleteTest extends PluggableFlowableTestCase {
                 .deploy().getId();
 
         processInstanceId = runtimeService.startProcessInstanceByKey(PROCESS_DEFINITION_KEY).getId();
-        Task task = taskService.createTaskQuery().processInstanceId(processInstanceId).singleResult();
+        org.flowable.task.api.Task task = taskService.createTaskQuery().processInstanceId(processInstanceId).singleResult();
         taskService.complete(task.getId());
 
         if (processEngineConfiguration.getHistoryLevel().isAtLeast(HistoryLevel.ACTIVITY)) {

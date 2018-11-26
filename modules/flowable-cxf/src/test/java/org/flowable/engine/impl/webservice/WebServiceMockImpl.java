@@ -33,16 +33,12 @@ public class WebServiceMockImpl implements WebServiceMock {
         this.dataStructure = new WebServiceDataStructure();
     }
 
-    /**
-     * {@inheritDoc}
-     */
+    @Override
     public int getCount() {
         return this.count;
     }
 
-    /**
-     * {@inheritDoc}
-     */
+    @Override
     public void inc() throws MaxValueReachedFault {
         if (this.count == 123456) {
             throw new RuntimeException("A runtime exception not expected in the processing of the web-service");
@@ -53,52 +49,38 @@ public class WebServiceMockImpl implements WebServiceMock {
         }
     }
 
-    /**
-     * {@inheritDoc}
-     */
+    @Override
     public void reset() {
         this.setTo(0);
     }
 
-    /**
-     * {@inheritDoc}
-     */
+    @Override
     public void setTo(int value) {
         this.count = value;
     }
 
-    /**
-     * {@inheritDoc}
-     */
+    @Override
     public String prettyPrintCount(String prefix, String suffix) {
         return prefix + this.getCount() + suffix;
     }
 
-    /**
-     * {@inheritDoc}
-     */
+    @Override
     public void setDataStructure(String str, Date date) {
         this.dataStructure.eltString = str;
         this.dataStructure.eltDate = date;
     }
 
-    /**
-     * {@inheritDoc}
-     */
+    @Override
     public WebServiceDataStructure getDataStructure() {
         return this.dataStructure;
     }
 
-    /**
-     * {@inheritDoc}
-     */
+    @Override
     public String noNameResult(String prefix, String suffix) {
         return prefix + this.getCount() + suffix;
     }
 
-    /**
-     * {@inheritDoc}
-     */
+    @Override
     public String reservedWordAsName(String prefix, String suffix) {
         return prefix + this.getCount() + suffix;
     }

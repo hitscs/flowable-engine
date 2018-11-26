@@ -12,7 +12,6 @@
  */
 package org.flowable.validation.validator;
 
-import org.flowable.validation.validator.impl.FlowableEventListenerValidator;
 import org.flowable.validation.validator.impl.AssociationValidator;
 import org.flowable.validation.validator.impl.BoundaryEventValidator;
 import org.flowable.validation.validator.impl.BpmnModelValidator;
@@ -26,6 +25,7 @@ import org.flowable.validation.validator.impl.EventValidator;
 import org.flowable.validation.validator.impl.ExclusiveGatewayValidator;
 import org.flowable.validation.validator.impl.ExecutionListenerValidator;
 import org.flowable.validation.validator.impl.FlowElementValidator;
+import org.flowable.validation.validator.impl.FlowableEventListenerValidator;
 import org.flowable.validation.validator.impl.IntermediateCatchEventValidator;
 import org.flowable.validation.validator.impl.IntermediateThrowEventValidator;
 import org.flowable.validation.validator.impl.MessageValidator;
@@ -45,7 +45,7 @@ import org.flowable.validation.validator.impl.UserTaskValidator;
 public class ValidatorSetFactory {
 
     public ValidatorSet createFlowableExecutableProcessValidatorSet() {
-        ValidatorSet validatorSet = new ValidatorSet(ValidatorSetNames.ACTIVITI_EXECUTABLE_PROCESS);
+        ValidatorSet validatorSet = new ValidatorSet(ValidatorSetNames.FLOWABLE_EXECUTABLE_PROCESS);
 
         validatorSet.addValidator(new AssociationValidator());
         validatorSet.addValidator(new SignalValidator());

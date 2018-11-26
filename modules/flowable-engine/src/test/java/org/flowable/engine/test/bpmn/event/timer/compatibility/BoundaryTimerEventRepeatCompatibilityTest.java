@@ -1,20 +1,33 @@
+/* Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package org.flowable.engine.test.bpmn.event.timer.compatibility;
 
 import java.util.Calendar;
 import java.util.Date;
 import java.util.List;
 
-import org.flowable.engine.impl.persistence.entity.TimerJobEntity;
-import org.flowable.engine.runtime.Job;
 import org.flowable.engine.runtime.ProcessInstance;
-import org.flowable.engine.task.Task;
 import org.flowable.engine.test.Deployment;
+import org.flowable.job.api.Job;
+import org.flowable.job.service.impl.persistence.entity.TimerJobEntity;
 import org.joda.time.DateTime;
 import org.joda.time.format.DateTimeFormatter;
 import org.joda.time.format.ISODateTimeFormat;
+import org.junit.jupiter.api.Test;
 
 public class BoundaryTimerEventRepeatCompatibilityTest extends TimerEventCompatibilityTest {
 
+    @Test
     @Deployment
     public void testRepeatWithoutEnd() throws Throwable {
 
@@ -36,10 +49,10 @@ public class BoundaryTimerEventRepeatCompatibilityTest extends TimerEventCompati
 
         runtimeService.setVariable(processInstance.getId(), "EndDateForBoundary", dateStr);
 
-        List<Task> tasks = taskService.createTaskQuery().list();
+        List<org.flowable.task.api.Task> tasks = taskService.createTaskQuery().list();
         assertEquals(1, tasks.size());
 
-        Task task = tasks.get(0);
+        org.flowable.task.api.Task task = tasks.get(0);
         assertEquals("Task A", task.getName());
 
         // Test Boundary Events

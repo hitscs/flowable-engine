@@ -15,7 +15,7 @@ package org.flowable.rest.service.api.runtime.process;
 import java.util.HashMap;
 import java.util.Map;
 
-import org.flowable.engine.common.api.query.QueryProperty;
+import org.flowable.common.engine.api.query.QueryProperty;
 import org.flowable.engine.impl.EventSubscriptionQueryProperty;
 
 /**
@@ -26,7 +26,7 @@ public class EventSubscriptionQueryProperties {
     public static Map<String, QueryProperty> PROPERTIES;
 
     static {
-        PROPERTIES = new HashMap<String, QueryProperty>();
+        PROPERTIES = new HashMap<>();
         PROPERTIES.put("id", EventSubscriptionQueryProperty.ID);
         PROPERTIES.put("created", EventSubscriptionQueryProperty.CREATED);
         PROPERTIES.put("executionId", EventSubscriptionQueryProperty.EXECUTION_ID);

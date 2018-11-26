@@ -21,6 +21,7 @@ import org.flowable.engine.DynamicBpmnConstants;
 import org.flowable.engine.impl.test.PluggableFlowableTestCase;
 import org.flowable.engine.runtime.ProcessInstance;
 import org.flowable.engine.test.Deployment;
+import org.junit.jupiter.api.Test;
 
 import com.fasterxml.jackson.databind.node.ObjectNode;
 
@@ -29,14 +30,13 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
  */
 public class DynamicCandidateGroupsTest extends PluggableFlowableTestCase implements DynamicBpmnConstants {
 
-    private final String TASK_ONE_SID = "sid-B94D5D22-E93E-4401-ADC5-C5C073E1EEB4";
-    private final String TASK_TWO_SID = "sid-B1C37EBE-A273-4DDE-B909-89302638526A";
-    private final String SCRIPT_TASK_SID = "sid-A403BAE0-E367-449A-90B2-48834FCAA2F9";
+    private static final String TASK_ONE_SID = "sid-B94D5D22-E93E-4401-ADC5-C5C073E1EEB4";
 
+    @Test
     @Deployment(resources = { "org/flowable/engine/test/bpmn/dynamic/dynamic-bpmn-test-process.bpmn20.xml" })
     public void testIsShouldBePossibleToChangeCandidateGroups() {
         ProcessInstance instance = runtimeService.startProcessInstanceByKey("dynamicServiceTest");
-        ArrayList<String> candidateGroups = new ArrayList<String>(2);
+        ArrayList<String> candidateGroups = new ArrayList<>(2);
         candidateGroups.add("HR");
         candidateGroups.add("SALES");
 
@@ -52,10 +52,11 @@ public class DynamicCandidateGroupsTest extends PluggableFlowableTestCase implem
         assertThat(salesTaskCount, is(1L));
     }
 
+    @Test
     @Deployment(resources = { "org/flowable/engine/test/bpmn/dynamic/dynamic-bpmn-test-process.bpmn20.xml" })
     public void testIsShouldBePossibleToResetChangeCandidateGroups() {
         ProcessInstance instance = runtimeService.startProcessInstanceByKey("dynamicServiceTest");
-        ArrayList<String> candidateGroups = new ArrayList<String>(2);
+        ArrayList<String> candidateGroups = new ArrayList<>(2);
         candidateGroups.add("HR");
         candidateGroups.add("SALES");
 

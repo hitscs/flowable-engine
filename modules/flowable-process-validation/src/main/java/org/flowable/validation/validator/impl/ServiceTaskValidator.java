@@ -55,7 +55,7 @@ public class ServiceTaskValidator extends ExternalInvocationTaskValidator {
         if (StringUtils.isNotEmpty(serviceTask.getType())) {
 
             if (!serviceTask.getType().equalsIgnoreCase("mail") && !serviceTask.getType().equalsIgnoreCase("mule") && !serviceTask.getType().equalsIgnoreCase("camel")
-                    && !serviceTask.getType().equalsIgnoreCase("shell") && !serviceTask.getType().equalsIgnoreCase("dmn")) {
+                    && !serviceTask.getType().equalsIgnoreCase("shell") && !serviceTask.getType().equalsIgnoreCase("dmn") && !serviceTask.getType().equalsIgnoreCase("http")) {
 
                 addError(errors, Problems.SERVICE_TASK_INVALID_TYPE, process, serviceTask, "Invalid or unsupported service task type");
             }
@@ -66,6 +66,8 @@ public class ServiceTaskValidator extends ExternalInvocationTaskValidator {
                 validateFieldDeclarationsForShell(process, serviceTask, serviceTask.getFieldExtensions(), errors);
             } else if (serviceTask.getType().equalsIgnoreCase("dmn")) {
                 validateFieldDeclarationsForDmn(process, serviceTask, serviceTask.getFieldExtensions(), errors);
+            } else if (serviceTask.getType().equalsIgnoreCase("http")) {
+                validateFieldDeclarationsForHttp(process, serviceTask, serviceTask.getFieldExtensions(), errors);
             }
 
         }
@@ -76,6 +78,10 @@ public class ServiceTaskValidator extends ExternalInvocationTaskValidator {
                 && (ImplementationType.IMPLEMENTATION_TYPE_CLASS.equals(serviceTask.getImplementationType()) || ImplementationType.IMPLEMENTATION_TYPE_DELEGATEEXPRESSION.equals(serviceTask
                         .getImplementationType()))) {
             addError(errors, Problems.SERVICE_TASK_RESULT_VAR_NAME_WITH_DELEGATE, process, serviceTask, "'resultVariableName' not supported for service tasks using 'class' or 'delegateExpression");
+        }
+
+        if (serviceTask.isUseLocalScopeForResultVariable() && StringUtils.isEmpty(serviceTask.getResultVariableName())) {
+            addWarning(errors, Problems.SERVICE_TASK_USE_LOCAL_SCOPE_FOR_RESULT_VAR_WITHOUT_RESULT_VARIABLE_NAME, process, serviceTask, "'useLocalScopeForResultVariable' is set, but no 'resultVariableName' is set. The property would not be used");
         }
     }
 

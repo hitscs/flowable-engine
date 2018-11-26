@@ -42,11 +42,11 @@ import org.flowable.bpmn.converter.alfresco.AlfrescoUserTaskXMLConverter;
 import org.flowable.bpmn.converter.child.DocumentationParser;
 import org.flowable.bpmn.converter.child.IOSpecificationParser;
 import org.flowable.bpmn.converter.child.MultiInstanceParser;
-import org.flowable.bpmn.converter.export.FlowableListenerExport;
 import org.flowable.bpmn.converter.export.BPMNDIExport;
 import org.flowable.bpmn.converter.export.CollaborationExport;
 import org.flowable.bpmn.converter.export.DataStoreExport;
 import org.flowable.bpmn.converter.export.DefinitionsRootExport;
+import org.flowable.bpmn.converter.export.FlowableListenerExport;
 import org.flowable.bpmn.converter.export.MultiInstanceExport;
 import org.flowable.bpmn.converter.export.ProcessExport;
 import org.flowable.bpmn.converter.export.SignalAndMessageDefinitionExport;
@@ -91,7 +91,7 @@ import org.flowable.bpmn.model.StringDataObject;
 import org.flowable.bpmn.model.SubProcess;
 import org.flowable.bpmn.model.TextAnnotation;
 import org.flowable.bpmn.model.Transaction;
-import org.flowable.engine.common.api.io.InputStreamProvider;
+import org.flowable.common.engine.api.io.InputStreamProvider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.xml.sax.SAXException;
@@ -107,8 +107,8 @@ public class BpmnXMLConverter implements BpmnXMLConstants {
     protected static final String BPMN_XSD = "org/flowable/impl/bpmn/parser/BPMN20.xsd";
     protected static final String DEFAULT_ENCODING = "UTF-8";
 
-    protected static Map<String, BaseBpmnXMLConverter> convertersToBpmnMap = new HashMap<String, BaseBpmnXMLConverter>();
-    protected static Map<Class<? extends BaseElement>, BaseBpmnXMLConverter> convertersToXMLMap = new HashMap<Class<? extends BaseElement>, BaseBpmnXMLConverter>();
+    protected static Map<String, BaseBpmnXMLConverter> convertersToBpmnMap = new HashMap<>();
+    protected static Map<Class<? extends BaseElement>, BaseBpmnXMLConverter> convertersToXMLMap = new HashMap<>();
 
     protected ClassLoader classloader;
     protected List<String> userTaskFormTypes;
@@ -146,6 +146,7 @@ public class BpmnXMLConverter implements BpmnXMLConstants {
         addConverter(new ReceiveTaskXMLConverter());
         addConverter(new ScriptTaskXMLConverter());
         addConverter(new ServiceTaskXMLConverter());
+        addConverter(new HttpServiceTaskXMLConverter());
         addConverter(new SendTaskXMLConverter());
         addConverter(new UserTaskXMLConverter());
         addConverter(new TaskXMLConverter());
@@ -257,43 +258,31 @@ public class BpmnXMLConverter implements BpmnXMLConstants {
             xif.setProperty(XMLInputFactory.SUPPORT_DTD, false);
         }
 
-        InputStreamReader in = null;
-        try {
-            in = new InputStreamReader(inputStreamProvider.getInputStream(), encoding);
-            XMLStreamReader xtr = xif.createXMLStreamReader(in);
-
-            try {
-                if (validateSchema) {
-
-                    if (!enableSafeBpmnXml) {
-                        validateModel(inputStreamProvider);
-                    } else {
-                        validateModel(xtr);
-                    }
-
-                    // The input stream is closed after schema validation
-                    in = new InputStreamReader(inputStreamProvider.getInputStream(), encoding);
-                    xtr = xif.createXMLStreamReader(in);
+        if (validateSchema) {
+            try (InputStreamReader in = new InputStreamReader(inputStreamProvider.getInputStream(), encoding)) {
+                if (!enableSafeBpmnXml) {
+                    validateModel(inputStreamProvider);
+                } else {
+                    validateModel(xif.createXMLStreamReader(in));
                 }
-
-            } catch (Exception e) {
+            } catch (UnsupportedEncodingException e) {
+                throw new XMLException("The bpmn 2.0 xml is not properly encoded", e);
+            } catch(XMLStreamException e){
+                throw new XMLException("Error while reading the BPMN 2.0 XML", e);
+            } catch(Exception e){
                 throw new XMLException(e.getMessage(), e);
             }
-
+        }
+        // The input stream is closed after schema validation
+        try (InputStreamReader in = new InputStreamReader(inputStreamProvider.getInputStream(), encoding)) {
             // XML conversion
-            return convertToBpmnModel(xtr);
+            return convertToBpmnModel(xif.createXMLStreamReader(in));
         } catch (UnsupportedEncodingException e) {
-            throw new XMLException("The bpmn 2.0 xml is not UTF8 encoded", e);
+            throw new XMLException("The bpmn 2.0 xml is not properly encoded", e);
         } catch (XMLStreamException e) {
             throw new XMLException("Error while reading the BPMN 2.0 XML", e);
-        } finally {
-            if (in != null) {
-                try {
-                    in.close();
-                } catch (IOException e) {
-                    LOGGER.debug("Problem closing BPMN input stream", e);
-                }
-            }
+        } catch (IOException e) {
+            throw new XMLException(e.getMessage(), e);
         }
     }
 
@@ -303,7 +292,7 @@ public class BpmnXMLConverter implements BpmnXMLConstants {
         model.setUserTaskFormTypes(userTaskFormTypes);
         try {
             Process activeProcess = null;
-            List<SubProcess> activeSubProcessList = new ArrayList<SubProcess>();
+            List<SubProcess> activeSubProcessList = new ArrayList<>();
             while (xtr.hasNext()) {
                 try {
                     xtr.next();
@@ -610,7 +599,7 @@ public class BpmnXMLConverter implements BpmnXMLConstants {
                 xtw.writeEndElement();
             }
 
-            MultiInstanceExport.writeMultiInstance(subProcess, xtw);
+            MultiInstanceExport.writeMultiInstance(subProcess, model, xtw);
 
             if (subProcess instanceof AdhocSubProcess) {
                 AdhocSubProcess adhocSubProcess = (AdhocSubProcess) subProcess;
